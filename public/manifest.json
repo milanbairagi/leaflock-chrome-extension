@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "Leaflock",
+    "version": "1.0.0",
+    "description": "A secure password manager extension.",
+    "permissions": [
+        "storage",
+        "tabs",
+        "activeTab"
+    ],
+    "action": {
+        "default_popup": "index.html"
+    }
+}
