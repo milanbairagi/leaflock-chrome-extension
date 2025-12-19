@@ -72,7 +72,7 @@ const writeStoredRefreshToken = async (
       globalThis.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     }
   } catch {
-    // Ignore storage failures (e.g. blocked in some contexts)
+    console.warn("Unable to access localStorage");
   }
 };
 
