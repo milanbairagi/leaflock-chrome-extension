@@ -7,10 +7,10 @@ import type { AuthTokens } from "./contexts/useAuthCredential";
 type NullableString = string | null;
 
 const api = (
-  accessToken: NullableString,
-  refreshToken: NullableString,
-  vaultUnlockToken: NullableString,
-  setAuthTokens: (tokens: AuthTokens) => Promise<void>
+  accessToken: NullableString = null,
+  refreshToken: NullableString = null,
+  vaultUnlockToken: NullableString = null,
+  setAuthTokens: ((tokens: AuthTokens) => Promise<void>) | null = null
 ): AxiosInstance => {
 
   const instance = axios.create({
@@ -37,10 +37,10 @@ const api = (
       // If the error is a 401 Unauthorized and the request has not been retried yet
       if (error.response?.status === 401 && config && !config._retry) {
         config._retry = true;
-        if (refreshToken) {
+        if (refreshToken && setAuthTokens) {
           try {
             const response = await instance.post(
-              `/token/refresh/`,
+              `accounts/token/refresh/`,
               {
                 refresh: refreshToken,
               }
