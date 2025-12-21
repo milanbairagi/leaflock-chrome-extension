@@ -33,7 +33,7 @@ const UserCredentialContext = createContext<ContextResponse | null>(null);
 export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const {accessToken, refreshToken, setAuthTokens, clearAuthTokens} = useAuthCredential();
+  const {accessToken, refreshToken, setAuthTokens, clearAuthTokens, lockVault} = useAuthCredential();
   const apiInstance = useMemo(
     () => api(accessToken, refreshToken, null, setAuthTokens),
     [accessToken, refreshToken, setAuthTokens]
@@ -69,6 +69,7 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
 
   const handleLogout = async () => {
     await clearAuthTokens();
+    await lockVault();
     setUser(null);
   };
 
