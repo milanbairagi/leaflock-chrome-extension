@@ -4,12 +4,15 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import axios, { type AxiosResponse } from "axios";
 
 type NullableString = string | null;
 
 const REFRESH_TOKEN_STORAGE_KEY = "leaflock.refreshToken";
+const BASE_API_URL = import.meta.env.VITE_API_BASE_URL;
 
 let currentAccessToken: NullableString = null;
 
@@ -109,6 +112,8 @@ export const AuthCredentialProvider = ({
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
   const [vaultUnlockToken, setVaultUnlockToken] = useState<NullableString>(null);
 
+  const hasAttemptedBootstrapRefresh = useRef(false);
+
   useEffect(() => {
     currentAccessToken = accessToken;
     return () => {
@@ -129,6 +134,40 @@ export const AuthCredentialProvider = ({
       isMounted = false;
     };
   }, []);
+
+  // If we have a refresh token but no access token,
+  // silently bootstrap a fresh access token once.
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!refreshToken) return;
+    if (accessToken) return;
+    if (hasAttemptedBootstrapRefresh.current) return;
+
+    hasAttemptedBootstrapRefresh.current = true;
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const res: AxiosResponse<{ access: string }> = await axios.post(
+          `${BASE_API_URL}accounts/token/refresh/`,
+          { refresh: refreshToken },
+          { timeout: 10000 }
+        );
+        if (!isMounted) return;
+        setAccessToken(res.data.access);
+      } catch {
+        if (!isMounted) return;
+        // Refresh token invalid/expired; clear to force login.
+        setAccessToken(null);
+        setRefreshToken(null);
+        await writeStoredRefreshToken(null);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isHydrated, refreshToken, accessToken]);
 
   const setAuthTokens = useCallback(async (tokens: AuthTokens) => {
     setAccessToken(tokens.accessToken);
