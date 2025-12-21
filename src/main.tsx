@@ -2,11 +2,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { AuthCredentialProvider } from './contexts/useAuthCredential.tsx'
+import { UserCredentialProvider } from './contexts/useUser.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthCredentialProvider>
-      <App />
+      <UserCredentialProvider>
+        <App />
+      </UserCredentialProvider>
     </AuthCredentialProvider>
   </StrictMode>,
 )

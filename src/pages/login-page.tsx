@@ -2,12 +2,21 @@ import { useState } from "react";
 import type { AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential, type AuthTokens } from "../contexts/useAuthCredential";
+import { useUserCredential } from "../contexts/useUser";
 
-const LoginPage = () => {
+
+interface props {
+  goToHome: () => void;
+}
+
+const LoginPage = ({ goToHome }: props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
+  const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
+
+  if (!isLoading && user) goToHome();
   
   interface LoginResponseData {
     access: string;

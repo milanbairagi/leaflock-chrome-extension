@@ -1,7 +1,24 @@
 import { useState } from "react";
+import { useUserCredential } from "../contexts/useUser";
 
-const VaultUnlockPage: React.FC = () => {
+
+interface props {
+  goToLogin: () => void;
+};
+
+const VaultUnlockPage: React.FC<props> = ({ goToLogin }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
+  const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  
+  if (!user)  {
+    goToLogin();
+    return null;
+  }
 
   return (
     <div>
