@@ -1,12 +1,20 @@
 import { useUserCredential } from "../contexts/useUser";
+import { useAuthCredential } from "../contexts/useAuthCredential";
 
 
 interface props {
   goToLogin: () => void;
+  goToVaultUnlock: () => void;
 };
 
-const HomePage: React.FC<props> = ({ goToLogin }: props) => {
+const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true, handleLogout: async () => {void 0} };
+  const { vaultUnlockToken } = useAuthCredential();
+
+  if (!vaultUnlockToken) {
+    goToVaultUnlock();
+    return null;
+  }
 
   if (isLoading) {
     return <div>Loading...</div>;

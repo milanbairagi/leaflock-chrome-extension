@@ -16,13 +16,9 @@ type Page = typeof Pages[keyof typeof Pages]
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>(Pages.LOGIN);
 
-  const goToLogin = () => {
-    setCurrentPage(Pages.LOGIN);
-  };
-
-  const goToHome = () => {
-    setCurrentPage(Pages.HOME);
-  };
+  const goToLogin = () => setCurrentPage(Pages.LOGIN);
+  const goToHome = () => setCurrentPage(Pages.HOME);
+  const goToVaultUnlock = () => setCurrentPage(Pages.VAULT_UNLOCK);
 
   return (
     <>
@@ -41,8 +37,8 @@ function App() {
       </nav>
 
       {currentPage === Pages.LOGIN && <LoginPage goToHome={goToHome} />}
-      {currentPage === Pages.VAULT_UNLOCK && <VaultUnlockPage goToLogin={goToLogin} />}
-      {currentPage === Pages.HOME && <HomePage  goToLogin={goToLogin} />}
+      {currentPage === Pages.VAULT_UNLOCK && <VaultUnlockPage goToLogin={goToLogin} goToHome={goToHome} />}
+      {currentPage === Pages.HOME && <HomePage  goToLogin={goToLogin} goToVaultUnlock={goToVaultUnlock} />}
     </>
   )
 }
