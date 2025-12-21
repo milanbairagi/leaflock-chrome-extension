@@ -5,7 +5,7 @@ interface props {
   goToLogin: () => void;
 };
 
-const HomePage = ({ goToLogin }: props) => {
+const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true, handleLogout: async () => {void 0} };
 
   if (isLoading) {

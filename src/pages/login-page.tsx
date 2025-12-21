@@ -9,7 +9,7 @@ interface props {
   goToHome: () => void;
 }
 
-const LoginPage = ({ goToHome }: props) => {
+const LoginPage: React.FC<props> = ({ goToHome }: props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
