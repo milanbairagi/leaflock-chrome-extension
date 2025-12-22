@@ -23,6 +23,7 @@ interface PasswordDetail {
 const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
   const [passwordDetail, setPasswordDetail] = useState<PasswordDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
 
@@ -36,12 +37,15 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
       try {
         const res: AxiosResponse<PasswordDetail> = await apiInstance.get(`vaults/retrieve-update/${passwordId}/`);
         setPasswordDetail(res.data);
+        setErrorMessage(null);
       } catch (error) {
         console.error("Error fetching password detail:", error);
+        setErrorMessage("Failed to fetch password detail.");
+        setTimeout(() => goBack && goBack(), 2000);
       } finally {
         setLoading(false);
       }
-  };
+    };
 
     if (!cancelled) {
       void fetchPasswordDetail(id);
@@ -52,10 +56,15 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
     };
   }, [id, accessToken, refreshToken, vaultUnlockToken, setAuthTokens]);
 
+  if (loading) {
+    return <div>Loading password details...</div>;
+  }
+
   return (
     <div>
       <button onClick={goBack}>Back to Home</button>
-      {(passwordDetail && !loading) ? (
+      {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
+      {(passwordDetail) && (
         <div>
           <h2>{passwordDetail.title}</h2>
           <p><strong>Username:</strong> {passwordDetail.username}</p>
@@ -65,8 +74,6 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
           <p><strong>Created At:</strong> {new Date(passwordDetail.created_at).toLocaleString()}</p>
           <p><strong>Updated At:</strong> {new Date(passwordDetail.updated_at).toLocaleString()}</p>
         </div>
-      ) : (
-        <div>Loading password details...</div>
       )}
     </div>
   );
