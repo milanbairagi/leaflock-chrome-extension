@@ -2,10 +2,12 @@ import { type AxiosResponse } from "axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import api from "../axios";
 import { useEffect, useState } from "react";
+import EditButton from "../components/EditButton";
 
 interface Props {
   id: number;
   goBack?: () => void;
+  handleEditClick?: (id: number) => void;
 };
 
 interface PasswordDetail {
@@ -20,7 +22,7 @@ interface PasswordDetail {
   updated_at: string;
 };
 
-const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
+const PasswordDetailPage: React.FC<Props> = ({ id, goBack, handleEditClick }) => {
   const [passwordDetail, setPasswordDetail] = useState<PasswordDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,6 +68,10 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack }) => {
       {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
       {(passwordDetail) && (
         <div>
+          <EditButton onClick={() => {
+            if (handleEditClick) handleEditClick(passwordDetail.id);
+          }} />
+          
           <h2>{passwordDetail.title}</h2>
           <p><strong>Username:</strong> {passwordDetail.username}</p>
           <p><strong>Password:</strong> {passwordDetail.password}</p>

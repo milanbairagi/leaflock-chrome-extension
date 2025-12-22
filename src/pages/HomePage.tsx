@@ -5,6 +5,8 @@ import { useAuthCredential } from "../contexts/useAuthCredential";
 import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
+import EditPage from "./EditPage";
+import EditButton from "../components/EditButton";
 
 
 interface props {
@@ -24,7 +26,7 @@ interface VaultItem {
 const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [pageState, setPageState] = useState<"list" | "detail" | "add">("list");
+  const [pageState, setPageState] = useState<"list" | "detail" | "add" | "edit">("list");
   const [selectedPasswordId, setSelectedPasswordId] = useState<number | null>(null);
   const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true, handleLogout: async () => {void 0} };
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
@@ -76,6 +78,11 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
     setPageState("detail");
   };
 
+  const handleEditClick = (id: number) => {
+    setPageState("edit");
+    setSelectedPasswordId(id);
+  }
+
   return (
     <div>
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
@@ -91,13 +98,20 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
         <>
           {(user) && <h3>Welcome! {user.username}</h3>}
           <button onClick={() => setPageState("add")}>Add New</button>
-          <ListView vaultItems={vaultItems} handleClick={handleShowDetail} />
+          <ListView vaultItems={vaultItems} handleClick={handleShowDetail} handleEditClick={handleEditClick} />
         </>
       }
       {pageState === "detail" && selectedPasswordId !== null &&
         <PasswordDetailPage 
           id={selectedPasswordId} 
-          goBack={handleBackToList} 
+          goBack={handleBackToList}
+          handleEditClick={handleEditClick}
+        />
+      }
+      {pageState === "edit" && selectedPasswordId !== null && 
+        <EditPage 
+          id={selectedPasswordId} 
+          handleAddAndGoToDetail={handleAddAndGoToDetail} 
         />
       }
       
@@ -106,16 +120,20 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   );
 };
 
-const ListView: React.FC<{ vaultItems: VaultItem[], handleClick: (id: number) => void }> = ({ vaultItems, handleClick }) => {
+const ListView: React.FC<{
+  vaultItems: VaultItem[],
+  handleClick: (id: number) => void
+  handleEditClick?: (id: number) => void
+}> = ({ vaultItems, handleClick, handleEditClick }) => {
   return (
     <div>
       <div>Password Lists</div>
       <ol>
         {vaultItems.map((item) => (
           <li key={item.id} onClick={() => handleClick(item.id)}
-              style={{ cursor: "pointer", backgroundColor: "#f0f0f0" }}
+              style={{ cursor: "pointer", backgroundColor: "#f0f0f0", margin: "5px", padding: "5px" }}
           >
-            {item.title} - {item.username} - {item.url}
+            {item.title} - {item.username} - {item.url} <EditButton onClick={() => {handleEditClick && handleEditClick(item.id)}} />
           </li>
         ))}
       </ol>
