@@ -1,7 +1,7 @@
 import { useState } from "react"
-import HomePage from "./pages/home-page"
-import LoginPage from "./pages/login-page"
-import VaultUnlockPage from "./pages/vault-unlock-page"
+import HomePage from "./pages/HomePage"
+import LoginPage from "./pages/LoginPage"
+import VaultUnlockPage from "./pages/VaultUnlockPage"
 
 
 const Pages = {
