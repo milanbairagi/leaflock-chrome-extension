@@ -4,7 +4,7 @@ import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 
 
-interface VaultItem {
+export interface VaultItem {
   title: string;
   username: string;
   password: string;
