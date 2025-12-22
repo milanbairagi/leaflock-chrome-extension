@@ -4,6 +4,7 @@ import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
+import AddNewPage from "./AddNewPage";
 
 
 interface props {
@@ -23,7 +24,7 @@ interface VaultItem {
 const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [pageState, setPageState] = useState<"list" | "detail">("list");
+  const [pageState, setPageState] = useState<"list" | "detail" | "add">("list");
   const [selectedPasswordId, setSelectedPasswordId] = useState<number | null>(null);
   const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true, handleLogout: async () => {void 0} };
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
@@ -68,13 +69,30 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
     setPageState("detail");
   };
 
+  const handleAddAndGoToDetail = (id: number) => {
+    // Refresh the list then go to detail view
+    fetchPasswordLists();
+    setSelectedPasswordId(id);
+    setPageState("detail");
+  };
+
   return (
     <div>
-      {(user) && <h3>Welcome! {user.username}</h3>}
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
-      {pageState === "list" && 
-        <ListView vaultItems={vaultItems} handleClick={handleShowDetail} />
+      {pageState === "add" &&
+        <>
+          <button onClick={handleBackToList}>Back to List</button>
+          <AddNewPage handleAddAndGoToDetail={handleAddAndGoToDetail} />
+        </>
+      }
+
+      {pageState === "list" &&
+        <>
+          {(user) && <h3>Welcome! {user.username}</h3>}
+          <button onClick={() => setPageState("add")}>Add New</button>
+          <ListView vaultItems={vaultItems} handleClick={handleShowDetail} />
+        </>
       }
       {pageState === "detail" && selectedPasswordId !== null &&
         <PasswordDetailPage 
