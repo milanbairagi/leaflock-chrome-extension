@@ -20,8 +20,8 @@ const api = (
 
   instance.interceptors.request.use(
     (config) => {
-      (accessToken) && (config.headers.Authorization = `Bearer ${accessToken}`);
-      (vaultUnlockToken) && (config.headers["X-Vault-Unlock-Token"] = vaultUnlockToken);
+      if (accessToken) (config.headers.Authorization = `Bearer ${accessToken}`);
+      if (vaultUnlockToken) (config.headers["X-Vault-Unlock-Token"] = vaultUnlockToken);
       return config;
     },
     (error) => {
