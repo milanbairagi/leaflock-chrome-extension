@@ -6,7 +6,7 @@ import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
-import EditButton from "../components/EditButton";
+import EditButton from "../components/buttons/EditButton";
 
 
 interface props {

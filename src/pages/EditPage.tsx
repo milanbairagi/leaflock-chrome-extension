@@ -3,7 +3,7 @@ import { type AxiosResponse } from "axios";
 import type { VaultItem } from "./AddNewPage";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
-import Button from "../components/Button";
+import Button from "../components/buttons/Button";
 
 
 interface Props {
