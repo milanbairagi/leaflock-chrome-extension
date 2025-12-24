@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential, type AuthTokens } from "../contexts/useAuthCredential";
@@ -16,7 +16,9 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
 
-  if (!isLoading && user) goToHome();
+  useEffect(() => {
+    if (!isLoading && user) goToHome();
+  }, [isLoading, user, goToHome]);
   
   interface LoginResponseData {
     access: string;
@@ -36,10 +38,7 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
       );
       const token: AuthTokens = {accessToken: response.data.access, refreshToken: response.data.refresh};
       await setAuthTokens(token);
-
-      console.log("Login successful:", response.data);
-      console.log("Access Token:", response.data.access);
-      console.log("Refresh Token:", response.data.refresh);
+      
     } catch (error) {
       console.error("Login failed:", error);
     }

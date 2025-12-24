@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import HomePage from "./pages/HomePage"
 import LoginPage from "./pages/LoginPage"
 import VaultUnlockPage from "./pages/VaultUnlockPage"
@@ -16,9 +16,9 @@ type Page = typeof Pages[keyof typeof Pages]
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>(Pages.LOGIN);
 
-  const goToLogin = () => setCurrentPage(Pages.LOGIN);
-  const goToHome = () => setCurrentPage(Pages.HOME);
-  const goToVaultUnlock = () => setCurrentPage(Pages.VAULT_UNLOCK);
+  const goToLogin = useCallback(() => setCurrentPage(Pages.LOGIN), []);
+  const goToHome = useCallback(() => setCurrentPage(Pages.HOME), []);
+  const goToVaultUnlock = useCallback(() => setCurrentPage(Pages.VAULT_UNLOCK), []);
 
   return (
     <>
