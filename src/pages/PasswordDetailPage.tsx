@@ -2,7 +2,7 @@ import { type AxiosResponse } from "axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import api from "../axios";
 import { useEffect, useState } from "react";
-import EditButton from "../components/EditButton";
+import EditButton from "../components/buttons/EditButton";
 
 interface Props {
   id: number;
