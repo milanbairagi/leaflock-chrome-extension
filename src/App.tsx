@@ -21,10 +21,8 @@ function App() {
   const goToVaultUnlock = useCallback(() => setCurrentPage(Pages.VAULT_UNLOCK), []);
 
   return (
-    <>
-      <h1>Leaflock Chrome Extension</h1>
-
-      <nav>
+    <div className="bg-background text-primary-0 rounded-2xl">
+      {/* <nav>
         <button type="button" onClick={() => setCurrentPage(Pages.LOGIN)}>
           Login
         </button>
@@ -34,12 +32,12 @@ function App() {
         <button type="button" onClick={() => setCurrentPage(Pages.HOME)}>
           Home
         </button>
-      </nav>
+      </nav> */}
 
       {currentPage === Pages.LOGIN && <LoginPage goToHome={goToHome} />}
       {currentPage === Pages.VAULT_UNLOCK && <VaultUnlockPage goToLogin={goToLogin} goToHome={goToHome} />}
       {currentPage === Pages.HOME && <HomePage  goToLogin={goToLogin} goToVaultUnlock={goToVaultUnlock} />}
-    </>
+    </div>
   )
 }
 
