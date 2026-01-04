@@ -6,7 +6,8 @@ import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
-import EditButton from "../components/buttons/EditButton";
+import logo from "../assets/images/Logo.svg";
+// import EditButton from "../components/buttons/EditButton";
 
 
 interface props {
@@ -99,7 +100,12 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   }
 
   return (
-    <div>
+    <div className="p-5 rounded-md">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">LockLeaf</h2>
+        <button onClick={() => setPageState("add")} className="bg-accent-50 text-white text-sm px-3 py-2 rounded-2xl hover:bg-accent-70 active:bg-accent-90">Add New</button>
+      </div>
+      
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
       {pageState === "add" &&
@@ -111,8 +117,9 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
 
       {pageState === "list" &&
         <>
-          {(user) && <h3>Welcome! {user.username}</h3>}
-          <button onClick={() => setPageState("add")}>Add New</button>
+          {/* {(user) &&
+            <h3 className="text-primary-0 text-2xl">Welcome! {user.username}</h3>
+          } */}
           <ListView vaultItems={vaultItems} handleClick={handleShowDetail} handleEditClick={handleEditClick} />
         </>
       }
@@ -141,23 +148,33 @@ const ListView: React.FC<{
   handleEditClick?: (id: number) => void
 }> = ({ vaultItems, handleClick, handleEditClick }) => {
   return (
-    <div>
-      <div>Password Lists</div>
-      <ol>
-        {vaultItems.map((item) => (
-          <li key={item.id} onClick={() => handleClick(item.id)}
-              style={{ cursor: "pointer", backgroundColor: "#f0f0f0", margin: "5px", padding: "5px" }}
-          >
-            {item.title} - {item.username} - {item.url}{" "}
-            <EditButton
-              onClick={() => {
-                if (handleEditClick) handleEditClick(item.id);
-              }}
-            />
-          </li>
-        ))}
-      </ol>
-    </div>
+    <ol className="grid gap-2">
+      {vaultItems.map((item) => (
+        <li
+          key={item.id} onClick={() => handleClick(item.id)}
+          className="flex gap-2 w-full bg-primary-40 text-primary-0 rounded-2xl py-2 px-4 cursor-pointer
+                hover:bg-accent-80 hover:text-white active:bg-accent-90
+                transition-colors duration-200 ease-in-out
+          "
+        >
+          <div className="grid items-center">
+            <span className="text-sm text-secondary-10">P{item.id}</span>
+          </div>
+          <div className="flex-grow">
+            <h4 className="text-md font-bold text-white">{item.title}</h4>
+            <p className="text-sm mb-0">{item.url}</p>
+            <p className="text-xs mb-0">{item.username}</p>
+          </div>
+
+          {/* <EditButton
+            onClick={() => {
+              if (handleEditClick) handleEditClick(item.id);
+            }}
+          /> */}
+
+        </li>
+      ))}
+    </ol>
   )
 };
 
