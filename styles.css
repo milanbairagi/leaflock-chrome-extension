@@ -5,6 +5,12 @@ body {
     height: 400px;
 }
 
+#root {
+    width: 100%;
+    height: 100%;
+    background: none;
+}
+
 @theme {
     /* Gray (Primary) */
     --color-primary-0: #c6c7c7;
