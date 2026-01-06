@@ -21,7 +21,7 @@ function App() {
   const goToVaultUnlock = useCallback(() => setCurrentPage(Pages.VAULT_UNLOCK), []);
 
   return (
-    <div className="bg-background text-primary-0 rounded-2xl">
+    <div className="bg-background text-primary-0 rounded-2xl h-full w-full">
       {/* <nav>
         <button type="button" onClick={() => setCurrentPage(Pages.LOGIN)}>
           Login
