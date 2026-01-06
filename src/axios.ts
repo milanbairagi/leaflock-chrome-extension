@@ -20,7 +20,11 @@ const api = (
 
   instance.interceptors.request.use(
     (config) => {
-      if (accessToken) (config.headers.Authorization = `Bearer ${accessToken}`);
+      const isRefreshEndpoint = config.url?.includes("accounts/token/refresh/");
+      
+      if (!isRefreshEndpoint && accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
       if (vaultUnlockToken) (config.headers["X-Vault-Unlock-Token"] = vaultUnlockToken);
       return config;
     },
@@ -33,9 +37,11 @@ const api = (
     (res) => res,
     async (error) => {
       const config = error.config;
+      const isRefreshEndpoint = config?.url?.includes("accounts/token/refresh/");
 
       // If the error is a 401 Unauthorized and the request has not been retried yet
-      if (error.response?.status === 401 && config && !config._retry) {
+      // Skip refresh logic if the failing request is the refresh endpoint itself
+      if (error.response?.status === 401 && config && !config._retry && !isRefreshEndpoint) {
         config._retry = true;
         if (refreshToken && setAuthTokens) {
           try {
