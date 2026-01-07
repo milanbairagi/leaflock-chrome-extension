@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useState, useLayoutEffect, useEffect } from "react"
 import HomePage from "./pages/HomePage"
 import LoginPage from "./pages/LoginPage"
 import VaultUnlockPage from "./pages/VaultUnlockPage"
@@ -14,11 +14,45 @@ type Page = typeof Pages[keyof typeof Pages]
 
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>(Pages.LOGIN);
+  const [currentPage, setCurrentPage] = useState<Page | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const goToLogin = useCallback(() => setCurrentPage(Pages.LOGIN), []);
   const goToHome = useCallback(() => setCurrentPage(Pages.HOME), []);
   const goToVaultUnlock = useCallback(() => setCurrentPage(Pages.VAULT_UNLOCK), []);
+
+
+  const setPageState = useCallback((page: Page) => {
+    chrome.storage.local.set({ "leaflock.currentPage": page})
+  }, [currentPage]);
+
+  const getPageState = useCallback(async (): Promise<Page | null> => {
+    const result = await chrome.storage.local.get("leaflock.currentPage");
+    if (result["leaflock.currentPage"]) {
+      return result["leaflock.currentPage"] as Page;
+    }
+    return null;
+  }, []);
+
+  // On app load, retrieve saved page state
+  useLayoutEffect(() => {
+    (async () => {
+      const savedPage = await getPageState();
+      setCurrentPage(savedPage || Pages.LOGIN);
+      setIsLoading(false);
+    })();
+  }, []);
+
+  // Whenever currentPage changes, save to storage
+  useEffect(() => {
+    if (currentPage !== null) {
+      setPageState(currentPage);
+    }
+  }, [currentPage]);
+  
+  if (isLoading || currentPage === null) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="bg-background text-primary-0 rounded-2xl h-full w-full">
