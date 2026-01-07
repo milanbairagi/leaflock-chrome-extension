@@ -4,79 +4,38 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import axios, { type AxiosResponse } from "axios";
 
 type NullableString = string | null;
+interface BackgroundMsgResType {
+  success: boolean;
+  [key: string]: unknown;
+}
 
-const REFRESH_TOKEN_STORAGE_KEY = "leaflock.refreshToken";
-const BASE_API_URL = import.meta.env.VITE_API_BASE_URL;
-
+// Module-level variable for axios interceptor
 let currentAccessToken: NullableString = null;
 
 export const getAccessToken = (): NullableString => currentAccessToken;
 
-const chromeStorageLocal = (): {
-  get: (keys: string | string[]) => Promise<Record<string, unknown>>;
-  set: (items: Record<string, unknown>) => Promise<void>;
-  remove: (keys: string | string[]) => Promise<void>;
-} | null => {
-  const chromeAny = (globalThis as unknown as { chrome?: any }).chrome;
-  const local = chromeAny?.storage?.local;
-  if (!local) return null;
-
-  const promisify = <T,>(fn: (cb: (result: T) => void) => void) =>
-    new Promise<T>((resolve) => fn(resolve));
-
-  return {
-    get: async (keys) =>
-      promisify<Record<string, unknown>>((cb) => local.get(keys, cb)),
-    set: async (items) => promisify<void>((cb) => local.set(items, cb)),
-    remove: async (keys) => promisify<void>((cb) => local.remove(keys, cb)),
-  };
-};
-
-const readStoredRefreshToken = async (): Promise<NullableString> => {
-  const storage = chromeStorageLocal();
-  if (storage) {
-    const result = await storage.get(REFRESH_TOKEN_STORAGE_KEY);
-    const value = result[REFRESH_TOKEN_STORAGE_KEY];
-    return typeof value === "string" ? value : null;
-  }
-
-  try {
-    const value = globalThis.localStorage?.getItem(REFRESH_TOKEN_STORAGE_KEY);
-    return value ?? null;
-  } catch {
-    return null;
-  }
-};
-
-const writeStoredRefreshToken = async (
-  token: NullableString
-): Promise<void> => {
-  const storage = chromeStorageLocal();
-  if (storage) {
-    if (token) {
-      await storage.set({ [REFRESH_TOKEN_STORAGE_KEY]: token });
-    } else {
-      await storage.remove(REFRESH_TOKEN_STORAGE_KEY);
-    }
-    return;
-  }
-
-  try {
-    if (!globalThis.localStorage) return;
-    if (token) {
-      globalThis.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
-    } else {
-      globalThis.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-    }
-  } catch {
-    console.warn("Unable to access localStorage");
-  }
+/**
+ * Send message to service worker and wait for response
+ */
+const sendMessageToBackground = <T,>(message: {
+  type: string;
+  payload?: unknown;
+}): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else if (response?.success === false) {
+        reject(new Error(response.error || "Unknown error"));
+      } else {
+        resolve(response as T);
+      }
+    });
+  });
 };
 
 export type AuthTokens = {
@@ -94,8 +53,8 @@ type AuthCredentialContextValue = {
   clearAuthTokens: () => Promise<void>;
 
   vaultUnlockToken: NullableString;
-  unlockVault: (token: string) => void;
-  lockVault: () => void;
+  unlockVault: (token: string) => Promise<void>;
+  lockVault: () => Promise<void>;
 };
 
 const AuthCredentialContext = createContext<AuthCredentialContextValue | null>(
@@ -112,8 +71,7 @@ export const AuthCredentialProvider = ({
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
   const [vaultUnlockToken, setVaultUnlockToken] = useState<NullableString>(null);
 
-  const hasAttemptedBootstrapRefresh = useRef(false);
-
+  // Sync currentAccessToken for axios interceptor
   useEffect(() => {
     currentAccessToken = accessToken;
     return () => {
@@ -121,74 +79,96 @@ export const AuthCredentialProvider = ({
     };
   }, [accessToken]);
 
+  // Load initial state from service worker
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      const storedRefresh = await readStoredRefreshToken();
-      if (!isMounted) return;
-      setRefreshToken(storedRefresh);
-      setIsHydrated(true);
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // If we have a refresh token but no access token,
-  // silently bootstrap a fresh access token once.
-  useEffect(() => {
-    if (!isHydrated) return;
-    if (!refreshToken) return;
-    if (accessToken) return;
-    if (hasAttemptedBootstrapRefresh.current) return;
-
-    hasAttemptedBootstrapRefresh.current = true;
     let isMounted = true;
 
     (async () => {
       try {
-        const res: AxiosResponse<{ access: string }> = await axios.post(
-          `${BASE_API_URL}accounts/token/refresh/`,
-          { refresh: refreshToken },
-          { timeout: 10000 }
-        );
+        // Get tokens from service worker
+        const [accessResponse, refreshResponse, vaultResponse] = await Promise.all([
+          sendMessageToBackground<{ accessToken: string | null }>({
+            type: "GET_ACCESS_TOKEN",
+          }),
+          sendMessageToBackground<{ refreshToken: string | null }>({
+            type: "GET_REFRESH_TOKEN",
+          }),
+          sendMessageToBackground<{ vaultUnlockToken: string | null }>({
+            type: "GET_VAULT_UNLOCK_TOKEN",
+          }),
+        ]);
+
         if (!isMounted) return;
-        setAccessToken(res.data.access);
-      } catch {
-        if (!isMounted) return;
-        // Refresh token invalid/expired; clear to force login.
-        setAccessToken(null);
-        setRefreshToken(null);
-        await writeStoredRefreshToken(null);
+
+        setAccessToken(accessResponse.accessToken);
+        setRefreshToken(refreshResponse.refreshToken);
+        setVaultUnlockToken(vaultResponse.vaultUnlockToken);
+        setIsHydrated(true);
+      } catch (error) {
+        console.error("[AuthCredential] Failed to hydrate from service worker:", error);
+        if (isMounted) {
+          setIsHydrated(true);
+        }
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [isHydrated, refreshToken, accessToken]);
+  }, []);
+
+  // Listen for vault lock events from service worker
+  useEffect(() => {
+    const handleMessage = (message: { type: string }) => {
+      if (message.type === "VAULT_LOCKED") {
+        setVaultUnlockToken(null);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
 
   const setAuthTokens = useCallback(async (tokens: AuthTokens) => {
-    setAccessToken(tokens.accessToken);
-    if (typeof tokens.refreshToken === "string") {
-      setRefreshToken(tokens.refreshToken);
-      await writeStoredRefreshToken(tokens.refreshToken);
+    const response: BackgroundMsgResType = await sendMessageToBackground({
+      type: "SET_AUTH_TOKENS",
+      payload: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      },
+    });
+    if (response.success) {
+      setAccessToken(tokens.accessToken);
+      setRefreshToken(tokens.refreshToken || null);
+    } else {
+      throw new Error("Failed to set auth tokens in background");
     }
   }, []);
 
   const clearAuthTokens = useCallback(async () => {
     setAccessToken(null);
     setRefreshToken(null);
-    await writeStoredRefreshToken(null);
+    await sendMessageToBackground({
+      type: "CLEAR_AUTH_TOKENS",
+    });
   }, []);
 
-  const unlockVault = useCallback((token: string) => {
+  const unlockVault = useCallback(async (token: string) => {
     setVaultUnlockToken(token);
+    await sendMessageToBackground({
+      type: "UNLOCK_VAULT",
+      payload: { token }
+    });
   }, []);
 
-  const lockVault = useCallback(() => {
+  const lockVault = useCallback(async () => {
     setVaultUnlockToken(null);
+    await sendMessageToBackground({
+      type: "LOCK_VAULT",
+    });
   }, []);
 
   const value = useMemo<AuthCredentialContextValue>(
