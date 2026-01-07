@@ -6,7 +6,7 @@ import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
-import logo from "../assets/images/Logo.svg";
+// import logo from "../assets/images/Logo.svg";
 // import EditButton from "../components/buttons/EditButton";
 
 
@@ -120,7 +120,9 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
           {/* {(user) &&
             <h3 className="text-primary-0 text-2xl">Welcome! {user.username}</h3>
           } */}
-          <ListView vaultItems={vaultItems} handleClick={handleShowDetail} handleEditClick={handleEditClick} />
+          <ListView vaultItems={vaultItems} handleClick={handleShowDetail} 
+            // handleEditClick={handleEditClick}
+          />
         </>
       }
       {pageState === "detail" && selectedPasswordId !== null &&
@@ -145,8 +147,7 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
 const ListView: React.FC<{
   vaultItems: VaultItem[],
   handleClick: (id: number) => void
-  handleEditClick?: (id: number) => void
-}> = ({ vaultItems, handleClick, handleEditClick }) => {
+}> = ({ vaultItems, handleClick }) => {
   return (
     <ol className="grid gap-2">
       {vaultItems.map((item) => (
@@ -160,7 +161,7 @@ const ListView: React.FC<{
           <div className="grid items-center">
             <span className="text-sm text-secondary-10">P{item.id}</span>
           </div>
-          <div className="flex-grow">
+          <div className="grow">
             <h4 className="text-md font-bold text-white">{item.title}</h4>
             <p className="text-sm mb-0">{item.url}</p>
             <p className="text-xs mb-0">{item.username}</p>
