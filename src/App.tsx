@@ -55,7 +55,7 @@ function App() {
   }
 
   return (
-    <div className="bg-background text-primary-0 rounded-2xl h-full w-full">
+    <div className="bg-background text-primary-0 h-full w-full overflow-y-scroll">
       {/* <nav>
         <button type="button" onClick={() => setCurrentPage(Pages.LOGIN)}>
           Login
