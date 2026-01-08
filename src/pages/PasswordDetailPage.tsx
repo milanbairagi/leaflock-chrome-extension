@@ -71,14 +71,40 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack, handleEditClick }) =>
           <EditButton onClick={() => {
             if (handleEditClick) handleEditClick(passwordDetail.id);
           }} />
-          
-          <h2>{passwordDetail.title}</h2>
-          <p><strong>Username:</strong> {passwordDetail.username}</p>
-          <p><strong>Password:</strong> {passwordDetail.password}</p>
-          <p><strong>URL:</strong> {passwordDetail.url}</p>
-          <p><strong>Notes:</strong> {passwordDetail.notes}</p>
-          <p><strong>Created At:</strong> {new Date(passwordDetail.created_at).toLocaleString()}</p>
-          <p><strong>Updated At:</strong> {new Date(passwordDetail.updated_at).toLocaleString()}</p>
+          <div className="bg-primary-40 text-primary-0 w-full py-2 px-4 rounded-md mb-6">
+            <h2 className="text-xl font-semibold">{passwordDetail.title}</h2>
+          </div>
+
+          <p className="text-primary-0 font-medium text-lg mb-2">Login Credential</p>
+          <div className="grid mb-7 bg-primary-40 p-4 rounded-md">
+            <div className="flex flex-col w-full border-b-accent-90 border-b pb-1 mb-3">
+              <label htmlFor="username" className="text-md text-secondary-10">Username</label>
+              <p id="username" className="text-lg">{passwordDetail.username}</p>
+            </div>
+            <div className="flex flex-col w-full border-b-accent-90 border-b pb-1 mb-3">
+              <label htmlFor="password" className="text-md text-secondary-10">Password</label>
+              <p id="password" className="text-lg">{passwordDetail.password}</p>
+            </div>
+          </div>
+
+          <p className="text-primary-0 font-medium text-lg mb-2">Autofill Options</p>
+          <div className="bg-primary-40 p-4 rounded-md mb-6">
+            <label htmlFor="url1" className="text-md text-secondary-10">Website</label>
+            <p id="url1" className="text-md">{passwordDetail.url}</p>
+          </div>
+
+          <p className="text-primary-0 font-medium text-lg mb-2">Additional Information</p>
+          <div className="bg-primary-40 p-4 rounded-md mb-6">
+            <label htmlFor="notes" className="text-md text-secondary-10">Notes</label>
+            <p id="notes" className="text-md">{passwordDetail.notes}</p>
+          </div>
+
+          <p className="text-primary-0 font-medium text-lg mb-2">Item History</p>
+          <div className="bg-primary-40 p-4 rounded-md mb-6">
+            <p className="text-md mb-2">{new Date(passwordDetail.created_at).toLocaleString()}</p>
+            <p className="text-md">{new Date(passwordDetail.updated_at).toLocaleString()}</p>
+          </div>
+
         </div>
       )}
     </div>
