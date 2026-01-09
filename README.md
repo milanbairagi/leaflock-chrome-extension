@@ -50,13 +50,13 @@ A secure password manager Chrome extension built with React, TypeScript, and Vit
 
 4. **Load the extension in Chrome**
    - Open Chrome and navigate to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top-right corner)
+   - Enable "Developer mode"
    - Click "Load unpacked"
    - Select the `dist` folder from the project directory
 
 ### For Production
 
-Download the extension from the Chrome Web Store (__coming soon__).
+Download the extension from the Chrome Web Store (_coming soon_).
 
 ## 🧑‍💻 Development
 
@@ -69,17 +69,12 @@ Download the extension from the Chrome Web Store (__coming soon__).
 
 ### Development Workflow
 
-1. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-2. After making changes, rebuild the extension:
+1. After making changes, rebuild the extension:
    ```bash
    npm run build
    ```
 
-3. Go to `chrome://extensions/` and click the refresh icon on the LeafLock extension
+2. Go to `chrome://extensions/` and click the refresh icon on the LeafLock extension
 
 ## 📁 Project Structure
 
