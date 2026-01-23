@@ -3,7 +3,6 @@ import type { AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
-import logo from "../assets/images/Logo.svg"
 
 
 interface props {
@@ -11,17 +10,24 @@ interface props {
   goToLogin: () => void;
 }
 
-interface RegisterResponseData {
-  "id": number;
+interface UserType {
+  "id": number | null;
   "username": string;
   "email": string | null;
   "first_name": string | null;
   "last_name": string | null;
+  "password": string | null;
 };
 
 const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [userState, setUserState] = useState<UserType>({
+    id: null,
+    username: "",
+    email: null,
+    first_name: null,
+    last_name: null,
+    password: null,
+  });
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
@@ -36,11 +42,11 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response: AxiosResponse<RegisterResponseData> = await apiInstance.post(
+      const response: AxiosResponse<UserType> = await apiInstance.post(
         "/accounts/register/",
         {
-          username: username,
-          password: password,
+          username: userState.username,
+          password: userState.password,
         }
       );
       
@@ -55,11 +61,12 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
 
   return (
     <div className="p-5 rounded-md">
-      <div className="flex justify-center items-center flex-col mb-8">
-        <img src={logo} alt="Leaflock Logo" className="w-40 mx-auto -mb-2" />
-        <p className="text-center">Secure Password Manager</p>
+      {/* Header */}
+      <div className="text-2xl font-semibold mb-6">
+        <h3>Create Your</h3>
+        <h3>LeafLock Account</h3>
       </div>
-      Welcome to Leaflock!
+
       <form
         onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
           handleRegister(e);
@@ -71,13 +78,55 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
         <p>Refresh Token: {refreshToken}</p> */}
 
         <div className="grid gap-1">
+          <label htmlFor="first-name" className="text-secondary-10">First Name: </label>
+          <input
+            type="text"
+            id="first-name"
+            value={userState.first_name ?? ""}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUserState({ ...userState, first_name: e.target.value })
+            }
+            placeholder="First Name"
+            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
+          />
+        </div>
+
+        <div className="grid gap-1">
+          <label htmlFor="last-name" className="text-secondary-10">Last Name: </label>
+          <input
+            type="text"
+            id="last-name"
+            value={userState.last_name ?? ""}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUserState({ ...userState, last_name: e.target.value })
+            }
+            placeholder="Last Name"
+            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
+          />
+        </div>
+        
+        <div className="grid gap-1">
+          <label htmlFor="email" className="text-secondary-10">Email: </label>
+          <input
+            type="text"
+            id="email"
+            value={userState.email ?? ""}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUserState({ ...userState, email: e.target.value })
+            }
+            placeholder="Email"
+            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
+          />
+        </div>
+
+        <div className="grid gap-1">
           <label htmlFor="username" className="text-secondary-10">Username: </label>
           <input
             type="text"
             id="username"
-            value={username}
+            value={userState.username ?? ""}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUsername(e.target.value)
+              setUserState({ ...userState, username: e.target.value })
             }
             placeholder="Username"
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
@@ -89,9 +138,9 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
           <input
             type="password"
             id="password"
-            value={password}
+            value={userState.password ?? ""}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPassword(e.target.value)
+              setUserState({ ...userState, password: e.target.value })
             }
             placeholder="Password"
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
@@ -106,7 +155,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={!username || !(password.length >= 5)}
+          disabled={!userState.username || !userState.password || !(userState.password?.length >= 5)}
         >
           Register
         </button>
