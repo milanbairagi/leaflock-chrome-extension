@@ -111,6 +111,14 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
           Register
         </button>
       </form>
+
+      
+      <p className="text-secondary-20 text-sm text-center mt-4">
+        Already have an account?
+        <span className="text-accent-20 cursor-pointer ml-1" onClick={goToLogin}>
+          Login here
+        </span>
+      </p>
     </div>
   );
 };

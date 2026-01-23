@@ -1,31 +1,43 @@
 import { useEffect, useState } from "react";
 import type { AxiosResponse } from "axios";
 import api from "../axios";
-import { useAuthCredential, type AuthTokens } from "../contexts/useAuthCredential";
+import {
+  useAuthCredential,
+  type AuthTokens,
+} from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
-import logo from "../assets/images/Logo.svg"
-
+import logo from "../assets/images/Logo.svg";
 
 interface props {
   goToHome: () => void;
+  goToRegister: () => void;
 }
 
-const LoginPage: React.FC<props> = ({ goToHome }: props) => {
+const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
-  const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
+  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
+    useAuthCredential();
+  const { user, isLoading } = useUserCredential() ?? {
+    user: null,
+    isLoading: true,
+  };
 
   useEffect(() => {
     if (!isLoading && user) goToHome();
   }, [isLoading, user, goToHome]);
-  
+
   interface LoginResponseData {
     access: string;
     refresh: string;
-  };
-  const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
+  }
+  const apiInstance = api(
+    accessToken,
+    refreshToken,
+    vaultUnlockToken,
+    setAuthTokens
+  );
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,16 +49,18 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
           password: password,
         }
       );
-      const token: AuthTokens = {accessToken: response.data.access, refreshToken: response.data.refresh};
+      const token: AuthTokens = {
+        accessToken: response.data.access,
+        refreshToken: response.data.refresh,
+      };
       await setAuthTokens(token);
-      
     } catch (error) {
       console.error("Login failed:", error);
     }
   };
 
   return (
-    <div className="p-5 rounded-md">
+    <div className="p-5 rounded-md h-full">
       <div className="flex justify-center items-center flex-col mb-8">
         <img src={logo} alt="Leaflock Logo" className="w-40 mx-auto -mb-2" />
         <p className="text-center">Secure Password Manager</p>
@@ -62,7 +76,9 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
         <p>Refresh Token: {refreshToken}</p> */}
 
         <div className="grid gap-1">
-          <label htmlFor="username" className="text-secondary-10">Username: </label>
+          <label htmlFor="username" className="text-secondary-10">
+            Username:{" "}
+          </label>
           <input
             type="text"
             id="username"
@@ -76,7 +92,9 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
         </div>
 
         <div className="grid gap-1">
-          <label htmlFor="password" className="text-secondary-10">Password: </label>
+          <label htmlFor="password" className="text-secondary-10">
+            Password:{" "}
+          </label>
           <input
             type="password"
             id="password"
@@ -86,7 +104,7 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
             }
             placeholder="Password"
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-            />
+          />
         </div>
 
         <button
@@ -102,6 +120,17 @@ const LoginPage: React.FC<props> = ({ goToHome }: props) => {
           Login
         </button>
       </form>
+
+      <p className="text-accent-20 cursor-pointer text-center text-md mt-4">
+        Forgot Password?
+      </p>
+
+      <p className="text-secondary-20 text-sm text-center mt-4">
+        Don't have an account?
+        <span className="text-accent-20 cursor-pointer ml-1" onClick={goToRegister}>
+          Register here
+        </span>
+      </p>
     </div>
   );
 };
