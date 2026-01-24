@@ -23,7 +23,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
+  const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true };
   const { accessToken, refreshToken, setAuthTokens, vaultUnlockToken, unlockVault, lockVault, isHydrated } = useAuthCredential();
 
   useEffect(() => {
@@ -75,7 +75,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       e.preventDefault();
       fetchVaultUnlockKey();
     }}>
-      
+      <button onClick={handleLogout}>Logout</button>
       <div className="flex justify-center items-center flex-col mb-8">
         <img src={logo} alt="Leaflock Logo" className="w-40 mx-auto -mb-2" />
         <p className="text-center">Secure Password Manager</p>
