@@ -11,17 +11,16 @@ interface props {
 }
 
 interface UserType {
-  "id": number | null;
+  "id"?: number;
   "username": string;
   "email": string | null;
   "first_name": string | null;
   "last_name": string | null;
-  "password": string | null;
+  "password"?: string | null;
 };
 
 const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   const [userState, setUserState] = useState<UserType>({
-    id: null,
     username: "",
     email: null,
     first_name: null,
@@ -43,11 +42,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
     e.preventDefault();
     try {
       const response: AxiosResponse<UserType> = await apiInstance.post(
-        "/accounts/register/",
-        {
-          username: userState.username,
-          password: userState.password,
-        }
+        "/accounts/register/", userState
       );
       
       if (response.status === 201) {
