@@ -6,6 +6,7 @@ import {
   type AuthTokens,
 } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
+import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import logo from "../assets/images/Logo.svg";
 
 interface props {
@@ -18,6 +19,9 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const { errorMessage, setErrorMessage, isAuthError, handleError, clearError } =
+    useAxiosErrorHandler();
+
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
@@ -28,6 +32,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   useEffect(() => {
     if (!isLoading && user) goToHome();
   }, [isLoading, user, goToHome]);
+
+  useEffect(() => {
+    if (isAuthError) setErrorMessage("Invalid username or password.");
+  }, [isAuthError]);
 
   interface LoginResponseData {
     access: string;
@@ -43,6 +51,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    clearError();
     try {
       const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
         "/accounts/token/",
@@ -57,11 +66,12 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       };
       await setAuthTokens(token);
     } catch (error) {
-      console.error("Login failed:", error);
+      handleError(error);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   return (
     <div className="p-5 rounded-md h-full">
@@ -109,6 +119,12 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
           />
         </div>
+
+        {errorMessage && (
+          <div className="text-red-400 text-sm text-center font-light">
+            <p>{errorMessage}</p>
+          </div>
+        )}
 
         <button
           type="submit"
