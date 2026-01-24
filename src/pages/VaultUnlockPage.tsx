@@ -85,7 +85,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
           value={masterPassword || ""}
           onChange={(e) => setMasterPassword(e.target.value)}
           className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-
+          autoFocus
         />
         {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
         

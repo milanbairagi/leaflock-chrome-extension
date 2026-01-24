@@ -81,6 +81,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setUserState({ ...userState, first_name: e.target.value })
             }
+            autoFocus
             placeholder="First Name"
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
           />
