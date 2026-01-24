@@ -22,6 +22,7 @@ interface DecodedToken {
 const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
   const { accessToken, refreshToken, setAuthTokens, vaultUnlockToken, unlockVault, lockVault, isHydrated } = useAuthCredential();
 
@@ -54,6 +55,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       vault_unlock_token: string;
     };
 
+    setIsSubmitting(true);
     try {
       const res: AxiosResponse<VaultUnlockResponse> = await apiInstance.post("vaults/unlock/", {
         master_password: masterPassword,
@@ -63,6 +65,8 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       goToHome();
     } catch (error) {
       setErrorMessage("Failed to unlock vault. Please check your master password.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -97,8 +101,9 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
+          disabled={isSubmitting || !masterPassword || !(masterPassword.length >= 5)}
         >
-          Submit
+          {isSubmitting ? "Unlocking..." : "Unlock"}
         </button>
       </form>
 

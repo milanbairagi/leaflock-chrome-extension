@@ -27,6 +27,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
     last_name: null,
     password: null,
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
@@ -40,6 +41,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const response: AxiosResponse<UserType> = await apiInstance.post(
         "/accounts/register/", userState
@@ -51,6 +53,8 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
       
     } catch (error) {
       console.error("Registration failed:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -63,9 +67,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
       </div>
 
       <form
-        onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-          handleRegister(e);
-        }}
+        onSubmit={handleRegister}
         className="flex flex-col gap-4"
       >
         {/* Test */}
@@ -151,9 +153,9 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={!userState.username || !userState.password || !(userState.password?.length >= 5)}
+          disabled={submitting || !userState.username || !userState.password || !(userState.password?.length >= 5)}
         >
-          Register
+          {submitting ? "Registering..." : "Register"}
         </button>
       </form>
 

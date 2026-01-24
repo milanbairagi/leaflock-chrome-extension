@@ -16,6 +16,7 @@ interface props {
 const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
     useAuthCredential();
@@ -41,6 +42,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
         "/accounts/token/",
@@ -56,6 +58,8 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       await setAuthTokens(token);
     } catch (error) {
       console.error("Login failed:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -66,9 +70,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         <p className="text-center">Secure Password Manager</p>
       </div>
       <form
-        onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-          handleLogin(e);
-        }}
+        onSubmit={handleLogin}
         className="flex flex-col gap-4"
       >
         {/* Test */}
@@ -116,9 +118,9 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={!username || !(password.length >= 5)}
+          disabled={!username || !(password.length >= 5) || submitting}
         >
-          Login
+          {submitting ? "Logging in..." : "Login"}
         </button>
       </form>
 
