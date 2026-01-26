@@ -15,6 +15,8 @@ interface ContextResponse {
   user: User | null;
   isLoading: boolean;
   handleLogout : () => Promise<void>;
+  hasSetMasterPassword: boolean | null;
+  setHasSetMasterPassword: (value: boolean | null) => void;
 };
 
 const fetchUserData = async (api: AxiosInstance): Promise<User> => {
@@ -32,6 +34,7 @@ const UserCredentialContext = createContext<ContextResponse | null>(null);
 
 export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) => {
   const [user, setUser] = useState<User | null>(null);
+  const [hasSetMasterPassword, setHasSetMasterPassword] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const {accessToken, refreshToken, setAuthTokens, clearAuthTokens, lockVault} = useAuthCredential();
   const apiInstance = useMemo(
@@ -51,10 +54,14 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
       };
     }
 
+    // Fetch user data
     (async () => {
       try {
         const userData: User = await fetchUserData(apiInstance);
+        const hasSetMasterPasswordStatus = await checkHasSetMasterPassword(apiInstance);
+
         if (isMounted) setUser(userData);
+        if (isMounted) setHasSetMasterPassword(hasSetMasterPasswordStatus);
       } catch {
         if (isMounted) setUser(null);
       } finally {
@@ -67,6 +74,19 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
     };
   }, [refreshToken, apiInstance]);
 
+  const checkHasSetMasterPassword = async (api: AxiosInstance) : Promise<boolean | null> => {
+    try {
+      const res: AxiosResponse<{has_master_key: boolean}> = await api.get("accounts/master-key/");
+      if (res.status === 200) {
+        return res.data.has_master_key;
+      }
+      return null;
+
+    } catch (error) {
+      return null;
+    }
+  };
+
   const handleLogout = async () => {
     await clearAuthTokens();
     await lockVault();
@@ -74,7 +94,7 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
   };
 
   return (
-    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout }}>
+    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout, hasSetMasterPassword, setHasSetMasterPassword }}>
       {children}
     </UserCredentialContext.Provider>
   );

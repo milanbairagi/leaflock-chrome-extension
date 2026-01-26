@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
-import { type AxiosResponse } from "axios";
+import { type AxiosInstance, type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import api from "../axios";
@@ -21,9 +21,10 @@ interface DecodedToken {
 
 const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
+  const [masterPasswordConfirm, setMasterPasswordConfirm] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true };
+  const { user, hasSetMasterPassword, setHasSetMasterPassword, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true };
   const { accessToken, refreshToken, setAuthTokens, vaultUnlockToken, unlockVault, lockVault, isHydrated } = useAuthCredential();
 
   useEffect(() => {
@@ -48,8 +49,34 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
     return null;
   }
 
-  const fetchVaultUnlockKey = async () => {
-    const apiInstance = api(accessToken, refreshToken, null, setAuthTokens);
+  const setupMasterPassword = async (api: AxiosInstance) => {
+    /**
+     * If the master password is not set, set it up first.
+     */
+    try {
+      if (masterPassword !== masterPasswordConfirm) {
+        setErrorMessage("Master password and confirmation do not match.");
+        return;
+      }
+
+      const res = await api.post("accounts/master-key/", { master_key: masterPassword });
+      if (res.status === 201) {
+        // fetch the vault unlock key after setting up the master password
+        await fetchVaultUnlockKey(api);
+        setHasSetMasterPassword(true);
+      }
+
+    } catch (error) {
+      setErrorMessage("Failed to set up master password.");
+    }
+
+  }
+
+  const fetchVaultUnlockKey = async (api: AxiosInstance) => {
+    /**
+     * Only if the master password is set, proceed to unlock the vault.
+     * Fetch the vault unlock key using the provided master password.
+     */
     
     interface VaultUnlockResponse {
       vault_unlock_token: string;
@@ -57,7 +84,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
 
     setIsSubmitting(true);
     try {
-      const res: AxiosResponse<VaultUnlockResponse> = await apiInstance.post("vaults/unlock/", {
+      const res: AxiosResponse<VaultUnlockResponse> = await api.post("vaults/unlock/", {
         master_password: masterPassword,
       });
       unlockVault(res.data.vault_unlock_token);
@@ -68,20 +95,28 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const apiInstance = api(accessToken, refreshToken, null, setAuthTokens);
+
+    if (!hasSetMasterPassword) {
+      await setupMasterPassword(apiInstance);
+    } else {
+      await fetchVaultUnlockKey(apiInstance);
+    }
+  };
 
   return (
-    <div className="p-5 rounded-md" onSubmit={(e) => {
-      e.preventDefault();
-      fetchVaultUnlockKey();
-    }}>
+    <div className="p-5 rounded-md">
       <button onClick={handleLogout}>Logout</button>
       <div className="flex justify-center items-center flex-col mb-8">
         <img src={logo} alt="Leaflock Logo" className="w-40 mx-auto -mb-2" />
         <p className="text-center">Secure Password Manager</p>
       </div>
 
-      <form className="grid gap-1">
+      <form className="grid gap-1" onSubmit={handleSubmit}>
         <label htmlFor="vault-password" className="text-secondary-10">Master Password:</label>
         <input
           type="password"
@@ -91,8 +126,22 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
           className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
           autoFocus
         />
+
+        {!hasSetMasterPassword && (
+          <>
+            <label htmlFor="vault-password-confirm" className="text-secondary-10 mt-2">Confirm Master Password:</label>
+            <input
+              type="password"
+              id="vault-password-confirm"
+              value={masterPasswordConfirm || ""}
+              onChange={(e) => setMasterPasswordConfirm(e.target.value)}
+              className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
+            />
+          </>
+        )}
+
         {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-        
+
         <button
           type="submit"
           className="text-center text-white bg-accent-50 rounded-4xl py-2 mt-4 cursor-pointer 
