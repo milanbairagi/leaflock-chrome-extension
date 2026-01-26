@@ -3,6 +3,7 @@ import type { AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
+import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 
 
 interface props {
@@ -38,10 +39,12 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   
 
   const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
+  const { errorMessage, clearError, handleError } = useAxiosErrorHandler();
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    clearError();
     try {
       const response: AxiosResponse<UserType> = await apiInstance.post(
         "/accounts/register/", userState
@@ -52,7 +55,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
       }
       
     } catch (error) {
-      console.error("Registration failed:", error);
+      handleError(error);
     } finally {
       setSubmitting(false);
     }
@@ -144,7 +147,12 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
             className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
             />
         </div>
-
+        
+        {errorMessage && (
+          <div className="text-red-400 text-sm text-center font-light">
+            <p>{errorMessage}</p>
+          </div>
+        )}
         <button
           type="submit"
           className="text-center text-white bg-accent-50 rounded-4xl py-2 mt-4 cursor-pointer 
