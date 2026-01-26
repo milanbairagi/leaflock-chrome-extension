@@ -3,6 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import { type AxiosInstance, type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
+import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import api from "../axios";
 import logo from "../assets/images/Logo.svg"
 
@@ -22,10 +23,11 @@ interface DecodedToken {
 const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
   const [masterPasswordConfirm, setMasterPasswordConfirm] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, hasSetMasterPassword, setHasSetMasterPassword, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true };
   const { accessToken, refreshToken, setAuthTokens, vaultUnlockToken, unlockVault, lockVault, isHydrated } = useAuthCredential();
+
+  const {errorMessage, setErrorMessage, clearError, handleError, isAuthError } = useAxiosErrorHandler();
 
   useEffect(() => {
     if (isHydrated && !isLoading && vaultUnlockToken) {
@@ -67,10 +69,14 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       }
 
     } catch (error) {
-      setErrorMessage("Failed to set up master password.");
+      handleError(error);
+      if (isAuthError.current) {
+        setErrorMessage("Failed to set up master password.");
+      }
+      return;
     }
 
-  }
+  };
 
   const fetchVaultUnlockKey = async (api: AxiosInstance) => {
     /**
@@ -91,7 +97,10 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       setErrorMessage(null);
       goToHome();
     } catch (error) {
-      setErrorMessage("Failed to unlock vault. Please check your master password.");
+      handleError(error);
+      if (isAuthError.current) {
+        setErrorMessage("Invalid master password.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -99,6 +108,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    clearError();
     const apiInstance = api(accessToken, refreshToken, null, setAuthTokens);
 
     if (!hasSetMasterPassword) {
