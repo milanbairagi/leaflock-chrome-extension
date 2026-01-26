@@ -1,13 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, type RefObject } from "react";
 import { isAxiosError, type AxiosError } from "axios";
 
 interface UseAxiosErrorHandlerReturn {
   errorMessage: string | null;
   setErrorMessage: (message: string | null) => void;
-  isNetworkError: boolean;
-  isTimeoutError: boolean;
-  isServerError: boolean;
-  isAuthError: boolean;
+  isNetworkError: RefObject<boolean>;
+  isTimeoutError: RefObject<boolean>;
+  isServerError: RefObject<boolean>;
+  isAuthError: RefObject<boolean>;
   handleError: (error: unknown) => void;
   clearError: () => void;
 }
@@ -18,48 +18,48 @@ interface UseAxiosErrorHandlerReturn {
  */
 export const useAxiosErrorHandler = (): UseAxiosErrorHandlerReturn => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isNetworkError, setIsNetworkError] = useState(false);
-  const [isTimeoutError, setIsTimeoutError] = useState(false);
-  const [isServerError, setIsServerError] = useState(false);
-  const [isAuthError, setIsAuthError] = useState(false);
+  const isNetworkError = useRef(false);
+  const isTimeoutError = useRef(false);
+  const isServerError = useRef(false);
+  const isAuthError = useRef(false);
 
   const handleError = useCallback((error: AxiosError | unknown) => {
-    setIsNetworkError(false);
-    setIsTimeoutError(false);
-    setIsServerError(false);
-    setIsAuthError(false);
+    isNetworkError.current = false;
+    isTimeoutError.current = false;
+    isServerError.current = false;
+    isAuthError.current = false;
 
     if (error && isAxiosError(error)) {
 
       // Handle network errors
       if (error.code === "ERR_NETWORK") {
-        setIsNetworkError(true);
+        isNetworkError.current = true;
         setErrorMessage(
           "Network error: Unable to reach the server. Please check your connection or try again later."
         );
       }
       // Handle timeout errors
       else if (error.code === "ECONNABORTED") {
-        setIsTimeoutError(true);
+        isTimeoutError.current = true;
         setErrorMessage(
           "Request timeout: Server is taking too long to respond. Please try again."
         );
       }
       // Handle server errors (5xx)
       else if (error.response?.status && error.response.status >= 500) {
-        setIsServerError(true);
+        isServerError.current = true;
         setErrorMessage(
           "Server error: The server is temporarily unavailable. Please try again later."
         );
       }
       // Handle authentication errors
       else if (error.response?.status === 401) {
-        setIsAuthError(true);
+        isAuthError.current = true;
         setErrorMessage("Session expired. Please log in again.");
       }
       // Handle validation errors
       else if (error.response?.status === 400) {
-        setIsAuthError(true);
+        isAuthError.current = true;
         setErrorMessage("Invalid input. Please check your information and try again.");
       }
       // Handle client errors (4xx)
@@ -74,7 +74,7 @@ export const useAxiosErrorHandler = (): UseAxiosErrorHandlerReturn => {
         error.code === "ENOTFOUND" ||
         !error.response
       ) {
-        setIsNetworkError(true);
+        isNetworkError.current = true;
         setErrorMessage(
           "Connection failed. Please check your internet connection and try again."
         );
@@ -88,10 +88,10 @@ export const useAxiosErrorHandler = (): UseAxiosErrorHandlerReturn => {
 
   const clearError = useCallback(() => {
     setErrorMessage(null);
-    setIsNetworkError(false);
-    setIsTimeoutError(false);
-    setIsServerError(false);
-    setIsAuthError(false);
+    isNetworkError.current = false;
+    isTimeoutError.current = false;
+    isServerError.current = false;
+    isAuthError.current = false;
   }, []);
 
   return {

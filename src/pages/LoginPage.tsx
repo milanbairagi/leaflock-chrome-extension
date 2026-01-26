@@ -33,10 +33,6 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     if (!isLoading && user) goToHome();
   }, [isLoading, user, goToHome]);
 
-  useEffect(() => {
-    if (isAuthError) setErrorMessage("Invalid username or password.");
-  }, [isAuthError]);
-
   interface LoginResponseData {
     access: string;
     refresh: string;
@@ -67,6 +63,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       await setAuthTokens(token);
     } catch (error) {
       handleError(error);
+      if (isAuthError.current) {
+        setErrorMessage("Invalid username or password.");
+      }
+
     } finally {
       setSubmitting(false);
     }
