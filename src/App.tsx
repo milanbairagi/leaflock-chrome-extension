@@ -1,9 +1,8 @@
-import { useCallback, useState, useLayoutEffect, useEffect } from "react"
-import HomePage from "./pages/HomePage"
-import LoginPage from "./pages/LoginPage"
-import VaultUnlockPage from "./pages/VaultUnlockPage"
+import { useCallback, useState, useLayoutEffect, useEffect } from "react";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import VaultUnlockPage from "./pages/VaultUnlockPage";
 import RegisterPage from "./pages/RegisterPage";
-
 
 const Pages = {
   LOGIN: "login",
@@ -12,8 +11,7 @@ const Pages = {
   HOME: "home",
 } as const;
 
-type Page = typeof Pages[keyof typeof Pages]
-
+type Page = (typeof Pages)[keyof typeof Pages];
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
@@ -21,12 +19,18 @@ function App() {
 
   const goToLogin = useCallback(() => setCurrentPage(Pages.LOGIN), []);
   const goToHome = useCallback(() => setCurrentPage(Pages.HOME), []);
-  const goToVaultUnlock = useCallback(() => setCurrentPage(Pages.VAULT_UNLOCK), []);
+  const goToVaultUnlock = useCallback(
+    () => setCurrentPage(Pages.VAULT_UNLOCK),
+    [],
+  );
   const goToRegister = useCallback(() => setCurrentPage(Pages.REGISTER), []);
 
-  const setPageState = useCallback((page: Page) => {
-    chrome.storage.local.set({ "leaflock.currentPage": page})
-  }, [currentPage]);
+  const setPageState = useCallback(
+    (page: Page) => {
+      chrome.storage.local.set({ "leaflock.currentPage": page });
+    },
+    [currentPage],
+  );
 
   const getPageState = useCallback(async (): Promise<Page | null> => {
     const result = await chrome.storage.local.get("leaflock.currentPage");
