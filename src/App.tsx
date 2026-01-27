@@ -55,9 +55,56 @@ function App() {
       setPageState(currentPage);
     }
   }, [currentPage]);
-  
+
   if (isLoading || currentPage === null) {
     return <div>Loading...</div>;
+  }
+
+  const sendMessageToContent = async (message: {
+    type: string;
+    payload?: unknown;
+  }) => {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+
+    if (!tab.id) return null;
+
+    const response = await chrome.tabs.sendMessage(tab.id, message);
+    return response;
+  };
+
+  // test content script communication
+  async function getInputFieldsFromCurrentTab() {
+    try {
+      const response = await sendMessageToContent({
+        type: "FIND_INPUT_FIELDS",
+      });
+      return response;
+    } catch (error) {
+      console.error("Error fetching input fields from content script:", error);
+    }
+    return null;
+  }
+
+  // test auto fill
+  async function autoFields() {
+    try {
+      const response = await sendMessageToContent({
+        type: "SET_INPUT_FIELD_VALUES",
+        payload: {
+          values: {
+            username: "testuser",
+            password: "testpassword",
+            email: "test@example.com",
+          },
+        },
+      });
+      console.log("Auto fill response:", response);
+    } catch (error) {
+      console.error("Error setting input field values:", error);
+    }
   }
 
   return (
@@ -73,13 +120,33 @@ function App() {
           Home
         </button>
       </nav> */}
-      
-      {currentPage === Pages.LOGIN && <LoginPage goToHome={goToHome} goToRegister={goToRegister} />}
-      {currentPage === Pages.REGISTER && <RegisterPage goToHome={goToHome} goToLogin={goToLogin} />}
-      {currentPage === Pages.VAULT_UNLOCK && <VaultUnlockPage goToLogin={goToLogin} goToHome={goToHome} />}
-      {currentPage === Pages.HOME && <HomePage  goToLogin={goToLogin} goToVaultUnlock={goToVaultUnlock} />}
+      <button
+        onClick={getInputFieldsFromCurrentTab}
+        className="bg-red-500 px-4 py-2"
+      >
+        Fetch Input
+      </button>
+      <button
+        onClick={autoFields}
+        className="bg-red-500 px-4 py-2"
+      >
+        Test Auto Fill
+      </button>
+      0
+      {currentPage === Pages.LOGIN && (
+        <LoginPage goToHome={goToHome} goToRegister={goToRegister} />
+      )}
+      {currentPage === Pages.REGISTER && (
+        <RegisterPage goToHome={goToHome} goToLogin={goToLogin} />
+      )}
+      {currentPage === Pages.VAULT_UNLOCK && (
+        <VaultUnlockPage goToLogin={goToLogin} goToHome={goToHome} />
+      )}
+      {currentPage === Pages.HOME && (
+        <HomePage goToLogin={goToLogin} goToVaultUnlock={goToVaultUnlock} />
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
