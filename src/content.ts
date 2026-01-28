@@ -68,12 +68,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         other: fields.other.length,
       },
     });
-  }
-  return true;
-});
-
-chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
-  if (message.type === "SET_INPUT_FIELD_VALUES") {
+    
+  } 
+  // Handle setting input field values
+  else if (message.type === "SET_INPUT_FIELD_VALUES") {
     const { values }: { values: InputFieldValue } = message.payload;
     const fields = findInputFields();
 
@@ -92,4 +90,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
     sendResponse({ success: true });
   }
+
+  sendResponse({ success: false, error: "Unknown message type" });
+  return true;
 });
