@@ -20,6 +20,17 @@ let accessTokenTimestamp: number | null = null;
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
 const TOKEN_REFRESH_ALARM = "leaflock-refresh-token";
 
+type VaultItem = {
+  id: number;
+  title: string;
+  username: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const vaultItems: VaultItem[] = [];
+
 /**
  * Initialize the service worker
  * - Load refresh token from storage
@@ -290,6 +301,16 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             success,
             accessToken: success ? accessToken : null,
           });
+          break;
+        }
+
+        // store vault items in memory
+        case "STORE_VAULT_ITEMS": {
+          const { items } = message.payload;
+          vaultItems.length = 0;
+          vaultItems.push(...items);
+          console.log("[Background] Stored vault items in memory");
+          sendResponse({ success: true });
           break;
         }
 
