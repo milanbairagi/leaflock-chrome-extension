@@ -1,7 +1,7 @@
 /*
  * Service Worker for Leaflock Chrome Extension
  * Manages authentication tokens and vault unlock state
-*/
+ */
 /// <reference types="chrome"/>
 
 const REFRESH_TOKEN_STORAGE_KEY = "leaflock.refreshToken";
@@ -52,10 +52,13 @@ chrome.runtime.onInstalled.addListener(async () => {
 async function initializeTokens(): Promise<void> {
   try {
     const result = await chrome.storage.local.get([REFRESH_TOKEN_STORAGE_KEY]);
-    if (result[REFRESH_TOKEN_STORAGE_KEY] && typeof result[REFRESH_TOKEN_STORAGE_KEY] === "string") {
+    if (
+      result[REFRESH_TOKEN_STORAGE_KEY] &&
+      typeof result[REFRESH_TOKEN_STORAGE_KEY] === "string"
+    ) {
       refreshToken = result[REFRESH_TOKEN_STORAGE_KEY];
       console.log("[Background] Loaded refresh token from storage");
-      
+
       // Try to get a fresh access token
       await refreshAccessToken();
     }
@@ -98,13 +101,13 @@ async function refreshAccessToken(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("[Background] Failed to refresh access token:", error);
-    
+
     // Clear invalid refresh token
     accessToken = null;
     refreshToken = null;
     accessTokenTimestamp = null;
     await chrome.storage.local.remove(REFRESH_TOKEN_STORAGE_KEY);
-    
+
     return false;
   }
 }
@@ -117,7 +120,9 @@ function scheduleTokenRefresh(): void {
   chrome.alarms.create(TOKEN_REFRESH_ALARM, {
     delayInMinutes: refreshInterval,
   });
-  console.log(`[Background] Scheduled token refresh in ${refreshInterval} minutes`);
+  console.log(
+    `[Background] Scheduled token refresh in ${refreshInterval} minutes`,
+  );
 }
 
 /**
@@ -159,7 +164,7 @@ function lockVault(): void {
   vaultUnlockTimestamp = null;
   chrome.alarms.clear(VAULT_LOCK_ALARM);
   console.log("[Background] Vault locked");
-  
+
   // Notify all contexts that vault is locked
   notifyVaultLocked();
 }
@@ -200,7 +205,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           if (!isAccessTokenValid() && refreshToken) {
             await refreshAccessToken();
           }
-          
+
           sendResponse({
             success: true,
             accessToken: isAccessTokenValid() ? accessToken : null,
@@ -222,7 +227,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             success: true,
             vaultUnlockToken: isValid ? vaultUnlockToken : null,
           });
-          
+
           // If expired, clear it
           if (!isValid && vaultUnlockToken) {
             lockVault();
@@ -231,21 +236,22 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "SET_AUTH_TOKENS": {
-          const { accessToken: newAccess, refreshToken: newRefresh } = message.payload;
-          
+          const { accessToken: newAccess, refreshToken: newRefresh } =
+            message.payload;
+
           if (newAccess) {
             accessToken = newAccess;
             accessTokenTimestamp = Date.now();
             scheduleTokenRefresh();
           }
-          
+
           if (newRefresh) {
             refreshToken = newRefresh;
             await chrome.storage.local.set({
               [REFRESH_TOKEN_STORAGE_KEY]: newRefresh,
             });
           }
-          
+
           console.log("[Background] Auth tokens updated");
           sendResponse({ success: true });
           break;
@@ -255,10 +261,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           accessToken = null;
           refreshToken = null;
           accessTokenTimestamp = null;
-          
+
           await chrome.storage.local.remove(REFRESH_TOKEN_STORAGE_KEY);
           chrome.alarms.clear(TOKEN_REFRESH_ALARM);
-          
+
           console.log("[Background] Auth tokens cleared");
           sendResponse({ success: true });
           break;
@@ -268,10 +274,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           const { token } = message.payload;
           vaultUnlockToken = token;
           vaultUnlockTimestamp = Date.now();
-          
+
           // Schedule auto-lock
           scheduleVaultLock();
-          
+
           console.log("[Background] Vault unlocked");
           sendResponse({ success: true });
           break;
