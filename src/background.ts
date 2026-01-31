@@ -178,12 +178,49 @@ function notifyVaultLocked(): void {
   });
 }
 
+async function fetchVaultDetail(id: number): Promise<VaultItem | null> {
+  try {
+    const res: Response = await fetch(
+      `${BASE_API_URL}/vaults/retrieve-update/${id}/`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken || ""}`,
+          "X-Vault-Unlock-Token": vaultUnlockToken || "",
+        },
+      },
+    );
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch vault details: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("[Background] Error fetching vault details:", error);
+    return null;
+  }
+}
+
+async function getFullVaultItems(ids: number[]) {
+  const details: VaultItem[] = [];
+  for (const id of ids) {
+    const detail = await fetchVaultDetail(id);
+    if (detail) {
+      details.push(detail);
+    }
+  }
+  return details;
+}
+
 /**
  * Handle alarm events
  */
 chrome.alarms.onAlarm.addListener((alarm) => {
   console.log(`[Background] Alarm triggered: ${alarm.name}`);
-  
+
   if (alarm.name === VAULT_LOCK_ALARM) {
     lockVault();
   } else if (alarm.name === TOKEN_REFRESH_ALARM) {
@@ -321,9 +358,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "GET_VAULT_ITEMS_FOR_URL": {
-          console.log("[Background] Retrieving vault items for URL:", message.payload.url);
           if (vaultItems.length === 0) {
-            console.log("[Background] No vault items stored in memory");
             sendResponse({ success: false, error: "No vault items stored" });
             return;
           }
@@ -331,22 +366,24 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
           // Filter items by URL if provided
           const origin = new URL(url).origin;
-          const matchedItems = vaultItems.filter(item => {
-            console.log("[Background] Checking vault item URL:", item.url);
+          // matchedItems doesn't include encrypted fields like passwords
+          const matchedItems = vaultItems.filter((item) => {
             try {
               const itemOrigin = new URL(item.url).origin;
-              console.log("[Background] Comparing origins:", itemOrigin, origin);
               return itemOrigin === origin;
             } catch (error) {
               if (error instanceof TypeError) {
-                console.log("[Background] Checking vault item URL as literal:", item.url);
                 return item.url === url;
               }
               return false;
             }
           });
 
-          sendResponse({ success: true, items: matchedItems });
+          const fullVaultItems = await getFullVaultItems(
+            matchedItems.map((item) => item.id),
+          );
+
+          sendResponse({ success: true, items: fullVaultItems });
           break;
         }
 
