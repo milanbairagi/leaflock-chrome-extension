@@ -6,7 +6,7 @@ import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
-
+import { sendServiceMessage } from "../hooks/useServiceMessage";
 
 interface props {
   goToLogin: () => void;
@@ -66,6 +66,16 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
       globalThis.clearTimeout(timeoutId);
     };
   }, [fetchPasswordLists, isLoading, needsVaultUnlock, user]);
+
+  useEffect(() => {
+    if (vaultItems.length === 0) return;
+    sendServiceMessage({
+      type: "STORE_VAULT_ITEMS",
+      payload: {
+        items: vaultItems,
+      },
+    });
+  }, [vaultItems]);
 
   if (needsVaultUnlock) return null;
 
