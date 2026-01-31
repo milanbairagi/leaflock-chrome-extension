@@ -65,7 +65,7 @@ function findInputFields() {
 }
 
 // Listen for messages from the extension
-chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, _, sendResponse) => {
   if (message.type === "FIND_INPUT_FIELDS") {
     const fields = findInputFields();
     sendResponse({
@@ -99,10 +99,19 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
     sendResponse({ success: true });
   }
+  else if (message.type === "RESET_INPUT_FIELDS") {
+    await handleAutofill();
+    sendResponse({ success: true });
+  }
 
   sendResponse({ success: false, error: "Unknown message type" });
   return true;
 });
+
+const showAutofillOptions = (vaultItems: VaultItem[]) => {
+  // For simplicity, just log the items for now
+  console.log("Autofill options available:", vaultItems);
+};
 
 const handleAutofill = async () => {
   const fields = findInputFields();
@@ -121,7 +130,7 @@ const handleAutofill = async () => {
     if (res && res.success && res.items) {
       vaultItems.push(...res.items);
     }
-    console.log("[LeafLock] Received vault items:", vaultItems);
+    showAutofillOptions(vaultItems);
   }
 };
 
