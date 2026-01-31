@@ -27,7 +27,7 @@ type VaultItem = {
   url: string;
   created_at: string;
   updated_at: string;
-}
+};
 
 const vaultItems: VaultItem[] = [];
 
@@ -311,6 +311,36 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           vaultItems.push(...items);
           console.log("[Background] Stored vault items in memory");
           sendResponse({ success: true });
+          break;
+        }
+
+        case "GET_VAULT_ITEMS_FOR_URL": {
+          console.log("[Background] Retrieving vault items for URL:", message.payload.url);
+          if (vaultItems.length === 0) {
+            console.log("[Background] No vault items stored in memory");
+            sendResponse({ success: false, error: "No vault items stored" });
+            return;
+          }
+          const { url } = message.payload;
+
+          // Filter items by URL if provided
+          const origin = new URL(url).origin;
+          const matchedItems = vaultItems.filter(item => {
+            console.log("[Background] Checking vault item URL:", item.url);
+            try {
+              const itemOrigin = new URL(item.url).origin;
+              console.log("[Background] Comparing origins:", itemOrigin, origin);
+              return itemOrigin === origin;
+            } catch (error) {
+              if (error instanceof TypeError) {
+                console.log("[Background] Checking vault item URL as literal:", item.url);
+                return item.url === url;
+              }
+              return false;
+            }
+          });
+
+          sendResponse({ success: true, items: matchedItems });
           break;
         }
 
