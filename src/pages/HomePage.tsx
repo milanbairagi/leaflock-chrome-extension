@@ -133,9 +133,9 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
           />
         </>
       }
-      {pageState === "detail" && selectedPasswordId !== null &&
-        <PasswordDetailPage 
-          id={selectedPasswordId} 
+      {pageState === "detail" && selectedPasswordId !== null && 
+        <PasswordDetailPage
+          id={selectedPasswordId}
           goBack={handleBackToList}
           handleEditClick={handleEditClick}
         />
@@ -180,11 +180,10 @@ const ListView: React.FC<{
               if (handleEditClick) handleEditClick(item.id);
             }}
           /> */}
-
         </li>
       ))}
     </ol>
-  )
+  );
 };
 
 export default HomePage;
