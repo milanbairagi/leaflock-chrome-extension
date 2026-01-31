@@ -11,7 +11,16 @@ type InputFieldValue = {
   password?: string;
   email?: string;
   [key: string]: string | undefined;
-}
+};
+
+type VaultItem = {
+  id: number;
+  title: string;
+  username: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+};
 
 function findInputFields() {
   const fields = {
@@ -68,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         other: fields.other.length,
       },
     });
-    
+
   } 
   // Handle setting input field values
   else if (message.type === "SET_INPUT_FIELD_VALUES") {
@@ -94,3 +103,29 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   sendResponse({ success: false, error: "Unknown message type" });
   return true;
 });
+
+const handleAutofill = async () => {
+  const fields = findInputFields();
+  
+  if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
+    console.log("[LeafLock] Detected input fields:");
+    const vaultItems: VaultItem[] = [];
+
+    const res = await chrome.runtime.sendMessage({
+      type: "GET_VAULT_ITEMS_FOR_URL",
+      payload: {
+        url: window.location.href
+      }
+    });
+
+    if (res && res.success && res.items) {
+      vaultItems.push(...res.items);
+    }
+    console.log("[LeafLock] Received vault items:", vaultItems);
+  }
+};
+
+// On load, check for input fields and expect vault items from background
+(async () => {
+  await handleAutofill();
+})();
