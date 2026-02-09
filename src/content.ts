@@ -4,8 +4,6 @@
  * Find all input fields on the page
  */
 
-console.log("Content script loaded");
-
 type InputFieldValue = {
   username?: string;
   password?: string;
@@ -270,7 +268,6 @@ const handleAutofill = async () => {
   const fields = findInputFields();
   
   if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
-    console.log("[LeafLock] Detected input fields:", fields);
     const vaultItems: FullVaultItem[] = [];
 
     const res = await chrome.runtime.sendMessage({
@@ -283,7 +280,6 @@ const handleAutofill = async () => {
     if (res && res.success && res.items) {
       vaultItems.push(...res.items);
     }
-    console.log(vaultItems);
     showAutofillOptions(vaultItems, fields);
   }
 };
