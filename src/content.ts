@@ -106,8 +106,12 @@ chrome.runtime.onMessage.addListener(async (message, _, sendResponse) => {
 
     sendResponse({ success: true });
   }
-  else if (message.type === "RESET_INPUT_FIELDS") {
-    await handleAutofill();
+  
+  else if (message.type === "VAULT_STATUS") {
+    if (!message.payload || typeof message.payload != "string") {
+      throw new Error("Invalid payload for VAULT_STATUS message");
+    }
+    if (message.payload === "unlock") await handleAutofill();
     sendResponse({ success: true });
   }
 

@@ -4,7 +4,6 @@ import { type AxiosInstance, type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
-import { sendMessageToContent } from "../hooks/useContentMessage";
 import api from "../axios";
 import logo from "../assets/images/Logo.svg"
 
@@ -96,12 +95,6 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       });
       unlockVault(res.data.vault_unlock_token);
       setErrorMessage(null);
-
-      try {
-        await sendMessageToContent({ type: "RESET_INPUT_FIELDS" });
-      } catch (error) {
-        console.error("[VaultUnlockPage] Error resetting input fields in content script:", error);
-      }
 
       goToHome();
     } catch (error) {

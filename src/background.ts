@@ -3,6 +3,7 @@
  * Manages authentication tokens and vault unlock state
  */
 /// <reference types="chrome"/>
+import { sendMessageToContent } from "./hooks/useContentMessage";
 
 const REFRESH_TOKEN_STORAGE_KEY = "leaflock.refreshToken";
 const VAULT_UNLOCK_DURATION = 15 * 60 * 1000; // 15 minutes
@@ -178,6 +179,17 @@ function notifyVaultLocked(): void {
   });
 }
 
+/**
+ * Notify content about vault unlock changes
+ * Called when vault unlock or lock
+*/
+function notifyContentVaultStatus(): void {
+  sendMessageToContent({
+    type: "VAULT_STATUS",
+    payload: (vaultUnlockToken) ? "unlock" : "lock"
+  });
+}
+
 async function fetchVaultDetail(id: number): Promise<VaultItem | null> {
   try {
     const res: Response = await fetch(
@@ -269,6 +281,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           if (!isValid && vaultUnlockToken) {
             lockVault();
           }
+
+          // notify context
+          notifyContentVaultStatus();
           break;
         }
 
@@ -317,12 +332,18 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
           console.log("[Background] Vault unlocked");
           sendResponse({ success: true });
+
+          // notify context
+          notifyContentVaultStatus();
           break;
         }
 
         case "LOCK_VAULT": {
           lockVault();
           sendResponse({ success: true });
+
+          // notify context
+          notifyContentVaultStatus();
           break;
         }
 
