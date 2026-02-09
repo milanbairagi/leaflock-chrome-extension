@@ -68,7 +68,6 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
       setVaultItems(res.data);
     } catch (error) {
       setErrorMessage("Failed to fetch password lists.");
-      console.error("Error fetching password lists:", error);
     }
   }, [accessToken, refreshToken, setAuthTokens, vaultUnlockToken]);
 
