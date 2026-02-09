@@ -211,8 +211,6 @@ const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) =
     container.style.top = `${rect.bottom + window.scrollY}px`;
     container.style.left = `${rect.left + window.scrollX}px`;
     container.style.width = `${rect.width}px`;
-
-    console.log("Dropdown container", container);
   };
 
   // Remove dropdown on click outside
