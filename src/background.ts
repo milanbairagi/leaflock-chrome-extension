@@ -25,9 +25,16 @@ type VaultItem = {
   id: number;
   title: string;
   username: string;
+  email?: string;
   url: string;
   created_at: string;
   updated_at: string;
+};
+
+type FullVaultItem = VaultItem & {
+  user: number;
+  password: string;
+  notes: string;
 };
 
 const vaultItems: VaultItem[] = [];
@@ -190,7 +197,7 @@ function notifyContentVaultStatus(): void {
   });
 }
 
-async function fetchVaultDetail(id: number): Promise<VaultItem | null> {
+async function fetchVaultDetail(id: number): Promise<FullVaultItem | null> {
   try {
     const res: Response = await fetch(
       `${BASE_API_URL}/vaults/retrieve-update/${id}/`,
@@ -216,8 +223,8 @@ async function fetchVaultDetail(id: number): Promise<VaultItem | null> {
   }
 }
 
-async function getFullVaultItems(ids: number[]) {
-  const details: VaultItem[] = [];
+async function getFullVaultItems(ids: number[]): Promise<FullVaultItem[]> {
+  const details: FullVaultItem[] = [];
   for (const id of ids) {
     const detail = await fetchVaultDetail(id);
     if (detail) {
