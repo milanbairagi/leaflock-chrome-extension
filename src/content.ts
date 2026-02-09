@@ -17,9 +17,16 @@ type VaultItem = {
   id: number;
   title: string;
   username: string;
+  email?: string;
   url: string;
   created_at: string;
   updated_at: string;
+};
+
+type FullVaultItem = VaultItem & {
+  user: number;
+  password: string;
+  notes: string;
 };
 
 type InputField = {
@@ -119,7 +126,22 @@ chrome.runtime.onMessage.addListener(async (message, _, sendResponse) => {
   return true;
 });
 
-const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) => {
+const fillInputField = (values: FullVaultItem, fields: InputField) => {
+  // Fill username
+  if (values.username && fields.username.length > 0) {
+    fields.username[0].value = values.username;
+  }
+  // Fill password
+  if (values.password && fields.password.length > 0) {
+    fields.password[0].value = values.password;
+  }
+  // Fill email
+  if (values.email && fields.email.length > 0) {
+    fields.email[0].value = values.email;
+  }
+};
+
+const showAutofillOptions = (vaultItems: FullVaultItem[], inputFields: InputField) => {
   // Inline CSS for Shadow DOM (avoids fetch() permission issues)
   const CSS_CONTENT = `
     .leaflock-autofill-dropdown {
@@ -164,6 +186,11 @@ const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) =
     });
   };
 
+  const handleClickOptions = (values: FullVaultItem) => {
+    removeDropdown();
+    fillInputField(values, inputFields);
+  };
+
   const handleFocus = async (field: HTMLInputElement) => {
     // Remove any existing dropdown
     removeDropdown();
@@ -196,9 +223,7 @@ const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) =
       text.textContent = item.username;
       option.appendChild(text);
       
-      option.addEventListener('click', async () => {        
-        removeDropdown();
-      });
+      option.addEventListener('click', () => handleClickOptions(item));
       
       dropdown.appendChild(option);
     });
@@ -246,7 +271,7 @@ const handleAutofill = async () => {
   
   if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
     console.log("[LeafLock] Detected input fields:", fields);
-    const vaultItems: VaultItem[] = [];
+    const vaultItems: FullVaultItem[] = [];
 
     const res = await chrome.runtime.sendMessage({
       type: "GET_VAULT_ITEMS_FOR_URL",
