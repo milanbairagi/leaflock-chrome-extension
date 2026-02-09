@@ -122,11 +122,6 @@ chrome.runtime.onMessage.addListener(async (message, _, sendResponse) => {
 const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) => {
   // Inline CSS for Shadow DOM (avoids fetch() permission issues)
   const CSS_CONTENT = `
-    #leaflock-autofill-container {
-      position: absolute;
-      z-index: 2147483647;
-    }
-    
     .leaflock-autofill-dropdown {
       background: #424345;
       border: 1px solid #555658;
@@ -177,6 +172,10 @@ const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) =
     const container = document.createElement('div');
     container.id = 'leaflock-autofill-container';
     
+    // Apply positioning styles directly to container
+    container.style.position = 'absolute';
+    container.style.zIndex = '999999';
+    
     // Attach shadow root for complete isolation
     const shadow = container.attachShadow({ mode: 'closed' });
     
@@ -212,6 +211,8 @@ const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) =
     container.style.top = `${rect.bottom + window.scrollY}px`;
     container.style.left = `${rect.left + window.scrollX}px`;
     container.style.width = `${rect.width}px`;
+
+    console.log("Dropdown container", container);
   };
 
   // Remove dropdown on click outside
