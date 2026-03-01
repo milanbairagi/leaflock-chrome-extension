@@ -43,6 +43,12 @@ A secure password manager Chrome extension built with React, TypeScript, and Vit
    npm install
    ```
 
+3. **Set up environment variables**
+   - Create a `.env` file in the root directory and add the following:
+      ```
+      VITE_API_BASE_URL=http://localhost:8000/  # Replace with your backend API URL
+      ```
+
 3. **Build the extension**
    ```bash
    npm run build
