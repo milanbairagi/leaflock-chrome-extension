@@ -5,29 +5,50 @@ import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import api from "../axios";
-import logo from "../assets/images/Logo.svg"
-
+import logo from "../assets/images/Logo.svg";
+import PasswordInput from "../components/inputs/PasswordInput";
 
 interface props {
   goToLogin: () => void;
   goToHome: () => void;
-};
+}
 
 interface DecodedToken {
   user_id: number;
   vault_key: string;
   exp: number;
   iat: number;
-};
+}
 
 const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const [masterPassword, setMasterPassword] = useState<string>("");
-  const [masterPasswordConfirm, setMasterPasswordConfirm] = useState<string>("");
+  const [masterPasswordConfirm, setMasterPasswordConfirm] =
+    useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, hasSetMasterPassword, setHasSetMasterPassword, isLoading, handleLogout } = useUserCredential() ?? { user: null, isLoading: true };
-  const { accessToken, refreshToken, setAuthTokens, vaultUnlockToken, unlockVault, lockVault, isHydrated } = useAuthCredential();
+  const {
+    user,
+    hasSetMasterPassword,
+    setHasSetMasterPassword,
+    isLoading,
+    handleLogout,
+  } = useUserCredential() ?? { user: null, isLoading: true };
+  const {
+    accessToken,
+    refreshToken,
+    setAuthTokens,
+    vaultUnlockToken,
+    unlockVault,
+    lockVault,
+    isHydrated,
+  } = useAuthCredential();
 
-  const {errorMessage, setErrorMessage, clearError, handleError, isAuthError } = useAxiosErrorHandler();
+  const {
+    errorMessage,
+    setErrorMessage,
+    clearError,
+    handleError,
+    isAuthError,
+  } = useAxiosErrorHandler();
 
   useEffect(() => {
     if (isHydrated && !isLoading && vaultUnlockToken) {
@@ -46,7 +67,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
     return <div>Loading...</div>;
   }
 
-  if (!user)  {
+  if (!user) {
     goToLogin();
     return null;
   }
@@ -61,13 +82,14 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
         return;
       }
 
-      const res = await api.post("accounts/master-key/", { master_key: masterPassword });
+      const res = await api.post("accounts/master-key/", {
+        master_key: masterPassword,
+      });
       if (res.status === 201) {
         // fetch the vault unlock key after setting up the master password
         await fetchVaultUnlockKey(api);
         setHasSetMasterPassword(true);
       }
-
     } catch (error) {
       handleError(error);
       if (isAuthError.current) {
@@ -75,7 +97,6 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       }
       return;
     }
-
   };
 
   const fetchVaultUnlockKey = async (api: AxiosInstance) => {
@@ -83,16 +104,19 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
      * Only if the master password is set, proceed to unlock the vault.
      * Fetch the vault unlock key using the provided master password.
      */
-    
+
     interface VaultUnlockResponse {
       vault_unlock_token: string;
-    };
+    }
 
     setIsSubmitting(true);
     try {
-      const res: AxiosResponse<VaultUnlockResponse> = await api.post("vaults/unlock/", {
-        master_password: masterPassword,
-      });
+      const res: AxiosResponse<VaultUnlockResponse> = await api.post(
+        "vaults/unlock/",
+        {
+          master_password: masterPassword,
+        },
+      );
       unlockVault(res.data.vault_unlock_token);
       setErrorMessage(null);
 
@@ -128,27 +152,23 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
       </div>
 
       <form className="grid gap-1" onSubmit={handleSubmit}>
-        <label htmlFor="vault-password" className="text-secondary-10">Master Password:</label>
-        <input
-          type="password"
+        <PasswordInput
+          label="Master Password"
+          password={masterPassword}
+          setPassword={setMasterPassword}
           id="vault-password"
-          value={masterPassword || ""}
-          onChange={(e) => setMasterPassword(e.target.value)}
-          className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          autoFocus
+          placeholder="Enter your master password"
+          autofocus={true}
         />
 
         {!hasSetMasterPassword && (
-          <>
-            <label htmlFor="vault-password-confirm" className="text-secondary-10 mt-2">Confirm Master Password:</label>
-            <input
-              type="password"
-              id="vault-password-confirm"
-              value={masterPasswordConfirm || ""}
-              onChange={(e) => setMasterPasswordConfirm(e.target.value)}
-              className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-            />
-          </>
+          <PasswordInput
+            label="Confirm Master Password"
+            password={masterPasswordConfirm}
+            setPassword={setMasterPasswordConfirm}
+            id="vault-password-confirm"
+            placeholder="Confirm your master password"
+          />
         )}
 
         {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
@@ -161,12 +181,13 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={isSubmitting || !masterPassword || !(masterPassword.length >= 5)}
+          disabled={
+            isSubmitting || !masterPassword || !(masterPassword.length >= 5)
+          }
         >
           {isSubmitting ? "Unlocking..." : "Unlock"}
         </button>
       </form>
-
     </div>
   );
 };
