@@ -8,6 +8,8 @@ import {
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import logo from "../assets/images/Logo.svg";
+import TextInput from "../components/inputs/TextInput";
+import PasswordInput from "../components/inputs/PasswordInput";
 
 interface props {
   goToHome: () => void;
@@ -19,8 +21,13 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { errorMessage, setErrorMessage, isAuthError, handleError, clearError } =
-    useAxiosErrorHandler();
+  const {
+    errorMessage,
+    setErrorMessage,
+    isAuthError,
+    handleError,
+    clearError,
+  } = useAxiosErrorHandler();
 
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
     useAuthCredential();
@@ -41,7 +48,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     accessToken,
     refreshToken,
     vaultUnlockToken,
-    setAuthTokens
+    setAuthTokens,
   );
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -54,7 +61,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         {
           username: username,
           password: password,
-        }
+        },
       );
       const token: AuthTokens = {
         accessToken: response.data.access,
@@ -66,12 +73,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       if (isAuthError.current) {
         setErrorMessage("Invalid username or password.");
       }
-
     } finally {
       setSubmitting(false);
     }
   };
-
 
   return (
     <div className="p-5 rounded-md h-full">
@@ -79,46 +84,24 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         <img src={logo} alt="Leaflock Logo" className="w-40 mx-auto -mb-2" />
         <p className="text-center">Secure Password Manager</p>
       </div>
-      <form
-        onSubmit={handleLogin}
-        className="flex flex-col gap-4"
-      >
+      <form onSubmit={handleLogin} className="flex flex-col gap-4">
         {/* Test */}
         {/* <p>Access Token: {accessToken}</p>
         <p>Refresh Token: {refreshToken}</p> */}
 
-        <div className="grid gap-1">
-          <label htmlFor="username" className="text-secondary-10">
-            Username:{" "}
-          </label>
-          <input
-            type="text"
-            id="username"
-            value={username}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUsername(e.target.value)
-            }
-            autoFocus
-            placeholder="Username"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
+        <TextInput
+          label="Username"
+          text={username}
+          setText={setUsername}
+          placeholder="Enter your username"
+        />
 
-        <div className="grid gap-1">
-          <label htmlFor="password" className="text-secondary-10">
-            Password:{" "}
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPassword(e.target.value)
-            }
-            placeholder="Password"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
+        <PasswordInput
+          label="Password"
+          password={password}
+          setPassword={setPassword}
+          placeholder="Enter your password"
+        />
 
         {errorMessage && (
           <div className="text-red-400 text-sm text-center font-light">
@@ -146,7 +129,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
 
       <p className="text-secondary-20 text-sm text-center mt-4">
         Don't have an account?
-        <span className="text-accent-20 cursor-pointer ml-1" onClick={goToRegister}>
+        <span
+          className="text-accent-20 cursor-pointer ml-1"
+          onClick={goToRegister}
+        >
           Register here
         </span>
       </p>

@@ -4,7 +4,8 @@ import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
-
+import TextInput from "../components/inputs/TextInput";
+import PasswordInput from "../components/inputs/PasswordInput";
 
 interface props {
   goToHome: () => void;
@@ -12,13 +13,13 @@ interface props {
 }
 
 interface UserType {
-  "id"?: number;
-  "username": string;
-  "email": string | null;
-  "first_name": string | null;
-  "last_name": string | null;
-  "password"?: string | null;
-};
+  id?: number;
+  username: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  password?: string | null;
+}
 
 const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   const [userState, setUserState] = useState<UserType>({
@@ -30,15 +31,23 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
-  const { user, isLoading } = useUserCredential() ?? { user: null, isLoading: true };
+  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
+    useAuthCredential();
+  const { user, isLoading } = useUserCredential() ?? {
+    user: null,
+    isLoading: true,
+  };
 
   useEffect(() => {
     if (!isLoading && user) goToHome();
   }, [isLoading, user, goToHome]);
-  
 
-  const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
+  const apiInstance = api(
+    accessToken,
+    refreshToken,
+    vaultUnlockToken,
+    setAuthTokens,
+  );
   const { errorMessage, clearError, handleError } = useAxiosErrorHandler();
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -47,13 +56,13 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
     clearError();
     try {
       const response: AxiosResponse<UserType> = await apiInstance.post(
-        "/accounts/register/", userState
+        "/accounts/register/",
+        userState,
       );
-      
+
       if (response.status === 201) {
         goToLogin();
       }
-      
     } catch (error) {
       handleError(error);
     } finally {
@@ -69,85 +78,59 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
         <h3>LeafLock Account</h3>
       </div>
 
-      <form
-        onSubmit={handleRegister}
-        className="flex flex-col gap-4"
-      >
+      <form onSubmit={handleRegister} className="flex flex-col gap-4">
         {/* Test */}
         {/* <p>Access Token: {accessToken}</p>
         <p>Refresh Token: {refreshToken}</p> */}
 
-        <div className="grid gap-1">
-          <label htmlFor="first-name" className="text-secondary-10">First Name: </label>
-          <input
-            type="text"
-            id="first-name"
-            value={userState.first_name ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUserState({ ...userState, first_name: e.target.value })
-            }
-            autoFocus
-            placeholder="First Name"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
+        <TextInput
+          label="First Name"
+          text={userState.first_name}
+          setText={(val) => {
+            setUserState({ ...userState, first_name: val });
+          }}
+          placeholder="First Name"
+          autofocus={true}
+        />
 
-        <div className="grid gap-1">
-          <label htmlFor="last-name" className="text-secondary-10">Last Name: </label>
-          <input
-            type="text"
-            id="last-name"
-            value={userState.last_name ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUserState({ ...userState, last_name: e.target.value })
-            }
-            placeholder="Last Name"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
-        
-        <div className="grid gap-1">
-          <label htmlFor="email" className="text-secondary-10">Email: </label>
-          <input
-            type="text"
-            id="email"
-            value={userState.email ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUserState({ ...userState, email: e.target.value })
-            }
-            placeholder="Email"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
+        <TextInput
+          label="Last Name"
+          text={userState.last_name}
+          setText={(val) => {
+            setUserState({ ...userState, last_name: val });
+          }}
+          placeholder="Last Name"
+        />
 
-        <div className="grid gap-1">
-          <label htmlFor="username" className="text-secondary-10">Username: </label>
-          <input
-            type="text"
-            id="username"
-            value={userState.username ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUserState({ ...userState, username: e.target.value })
-            }
-            placeholder="Username"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-          />
-        </div>
+        <TextInput
+          label="Email"
+          text={userState.email ?? undefined}
+          setText={(val) => {
+            setUserState({ ...userState, email: val });
+          }}
+          placeholder="Email"
+          autofocus={true}
+        />
 
-        <div className="grid gap-1">
-          <label htmlFor="password" className="text-secondary-10">Password: </label>
-          <input
-            type="password"
-            id="password"
-            value={userState.password ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUserState({ ...userState, password: e.target.value })
-            }
-            placeholder="Password"
-            className="bg-primary-40 text-primary-0 border border-accent-0 rounded-4xl w-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-accent-40"
-            />
-        </div>
-        
+        <TextInput
+          label="Username"
+          text={userState.username}
+          setText={(val) => {
+            setUserState({ ...userState, username: val });
+          }}
+          placeholder="Username"
+          autofocus={true}
+        />
+
+        <PasswordInput
+          label="Password"
+          password={userState.password ?? undefined}
+          setPassword={(val) => {
+            setUserState({ ...userState, password: val });
+          }}
+          placeholder="Password"
+        />
+
         {errorMessage && (
           <div className="text-red-400 text-sm text-center font-light">
             <p>{errorMessage}</p>
@@ -161,16 +144,23 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={submitting || !userState.username || !userState.password || !(userState.password?.length >= 5)}
+          disabled={
+            submitting ||
+            !userState.username ||
+            !userState.password ||
+            !(userState.password?.length >= 5)
+          }
         >
           {submitting ? "Registering..." : "Register"}
         </button>
       </form>
 
-      
       <p className="text-secondary-20 text-sm text-center mt-4">
         Already have an account?
-        <span className="text-accent-20 cursor-pointer ml-1" onClick={goToLogin}>
+        <span
+          className="text-accent-20 cursor-pointer ml-1"
+          onClick={goToLogin}
+        >
           Login here
         </span>
       </p>
