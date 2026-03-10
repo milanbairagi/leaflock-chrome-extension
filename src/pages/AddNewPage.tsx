@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { type AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
+import EditableVaultItem from "./EditableVaultItem";
 
 
 export interface VaultItem {
@@ -21,7 +22,7 @@ interface props {
   handleAddAndGoToDetail?: (newItemId: number) => void;
 }
 const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
-  const [vaultItem, setVaultItem] = useState<VaultItem>({
+  const [vaultItem, setVaultItem] = useState<VaultItem | null>({
     title: "",
     username: "",
     password: "",
@@ -53,7 +54,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
 
   return (
     <div>
-      <form onSubmit={fetchNewVaultItem}>
+      {/* <form onSubmit={fetchNewVaultItem}>
         title: <input type="text" value={vaultItem?.title} onChange={(e) => setVaultItem({ ...vaultItem, title: e.target.value })} /><br />
         username: <input type="text" value={vaultItem?.username} onChange={(e) => setVaultItem({ ...vaultItem, username: e.target.value })} /><br />
         password: <input type="password" value={vaultItem?.password} onChange={(e) => setVaultItem({ ...vaultItem, password: e.target.value })} /><br />
@@ -64,7 +65,16 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
           {loading ? "Submitting..." : "Submit"}
         </button>
         {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
-      </form>
+      </form> */}
+
+      <EditableVaultItem
+        vaultItem={vaultItem}
+        setVaultItem={setVaultItem}
+        onSubmit={fetchNewVaultItem}
+        isEditing={false}
+        loading={loading}
+        errorMessage={errorMessage}
+      />
     </div>
   );
 };

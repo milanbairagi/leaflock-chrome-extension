@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { type AxiosResponse } from "axios";
 import type { VaultItem } from "./AddNewPage";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import Button from "../components/buttons/Button";
+import EditableVaultItem from "./EditableVaultItem";
 
 
 interface Props {
@@ -14,12 +15,10 @@ interface Props {
 const EditPage: React.FC<Props> = ({ id, handleAddAndGoToDetail }: Props) => {
   const [vaultItemState, setVaultItemState] = useState<VaultItem | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
 
   const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
-  const passwordInputRef = useRef<HTMLInputElement>(null);
   const fetchVaultItem = useCallback(async () => {
     setLoading(true);
     try {
@@ -70,12 +69,8 @@ const EditPage: React.FC<Props> = ({ id, handleAddAndGoToDetail }: Props) => {
     [vaultItemState, accessToken, refreshToken, vaultUnlockToken, setAuthTokens]
   );
 
-  const togglePasswordVisibility = () => {
-    if (passwordInputRef.current) setPasswordVisible(!passwordVisible);
-    console.log("Toggle password visibility - not implemented");
-  };
 
-  if (loading || !vaultItemState) {
+  if (loading || !vaultItemState || !setVaultItemState) {
     return <div>Loading vault item...</div>;
   }
 
@@ -85,17 +80,14 @@ const EditPage: React.FC<Props> = ({ id, handleAddAndGoToDetail }: Props) => {
         text="Back to Details"
         handleClick={() => {if (handleAddAndGoToDetail && vaultItemState?.id) handleAddAndGoToDetail(vaultItemState.id)}}
       />
-      <form onSubmit={handleEditVaultItem}>
-        title: <input type="text" value={vaultItemState?.title} onChange={(e) => setVaultItemState({ ...vaultItemState, title: e.target.value })} /><br />
-        username: <input type="text" value={vaultItemState?.username} onChange={(e) => setVaultItemState({ ...vaultItemState, username: e.target.value })} /><br />
-        password: <input ref={passwordInputRef} type={passwordVisible ? "text" : "password"} value={vaultItemState?.password} onChange={(e) => setVaultItemState({ ...vaultItemState, password: e.target.value })} />
-            <Button text={passwordVisible ? "Hide" : "Show"} handleClick={togglePasswordVisibility} /><br />
-        url: <input type="text" value={vaultItemState?.url} onChange={(e) => setVaultItemState({ ...vaultItemState, url: e.target.value })} /><br />
-        notes: <textarea value={vaultItemState?.notes || ""} onChange={(e) => setVaultItemState({ ...vaultItemState, notes: e.target.value })} /><br />
-        <button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Changes"}</button>
-      </form>
-
-      {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
+      <EditableVaultItem
+        vaultItem={vaultItemState}
+        setVaultItem={setVaultItemState}
+        onSubmit={handleEditVaultItem}
+        isEditing={true}
+        loading={loading}
+        errorMessage={errorMessage}
+      />
     </div>
   );
 };
