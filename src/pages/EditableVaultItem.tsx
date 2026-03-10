@@ -49,8 +49,6 @@ const EditableVaultItem = ({
   return (
     <div>
       <form onSubmit={onSubmit}>
-
-        
         <div className="bg-primary-40 text-primary-0 w-full py-2 px-4 rounded-md mb-6">
           <p className="text-primary-0 font-medium text-lg mb-2">Title</p>
           <input
@@ -62,10 +60,14 @@ const EditableVaultItem = ({
           />
         </div>
 
-        <p className="text-primary-0 font-medium text-lg mb-2">Login Credential</p>
+        <p className="text-primary-0 font-medium text-lg mb-2">
+          Login Credential
+        </p>
         <div className="grid mb-7 bg-primary-40 p-4 rounded-md min-w-0">
           <div className="flex flex-col border-b-accent-90 border-b pb-1 mb-3 min-w-0">
-            <label htmlFor="username" className="text-md text-secondary-10">Username</label>
+            <label htmlFor="username" className="text-md text-secondary-10">
+              Username
+            </label>
             <input
               type="text"
               value={vaultItem?.username}
@@ -75,7 +77,9 @@ const EditableVaultItem = ({
             />
           </div>
           <div className="flex flex-col border-b-accent-90 border-b pb-1 mb-3 min-w-0">
-            <label htmlFor="password" className="text-md text-secondary-10">Password</label>
+            <label htmlFor="password" className="text-md text-secondary-10">
+              Password
+            </label>
             <div className="flex items-center">
               <input
                 type={passwordVisible ? "text" : "password"}
@@ -99,9 +103,13 @@ const EditableVaultItem = ({
           </div>
         </div>
 
-        <p className="text-primary-0 font-medium text-lg mb-2">Autofill Options</p>
+        <p className="text-primary-0 font-medium text-lg mb-2">
+          Autofill Options
+        </p>
         <div className="bg-primary-40 p-4 rounded-md mb-6">
-          <label htmlFor="url1" className="text-md text-secondary-10 block">Website</label>
+          <label htmlFor="url1" className="text-md text-secondary-10 block">
+            Website
+          </label>
           <input
             type="text"
             value={vaultItem?.url}
@@ -111,9 +119,13 @@ const EditableVaultItem = ({
           />
         </div>
 
-        <p className="text-primary-0 font-medium text-lg mb-2">Additional Information</p>
+        <p className="text-primary-0 font-medium text-lg mb-2">
+          Additional Information
+        </p>
         <div className="bg-primary-40 p-4 rounded-md mb-6">
-          <label htmlFor="notes" className="text-md text-secondary-10 block">Notes</label>
+          <label htmlFor="notes" className="text-md text-secondary-10 block">
+            Notes
+          </label>
           <textarea
             value={vaultItem?.notes || ""}
             onChange={handleChange}
@@ -122,13 +134,13 @@ const EditableVaultItem = ({
           />
         </div>
 
-        {errorMessage && <div className="text-red-500 my-2">{errorMessage}</div>}
+        {errorMessage && (
+          <div className="text-red-500 my-2">{errorMessage}</div>
+        )}
         <Button text={buttonText} type="submit" isDisable={loading} />
       </form>
-
     </div>
   );
 };
-
 
 export default EditableVaultItem;
