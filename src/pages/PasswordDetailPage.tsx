@@ -68,10 +68,13 @@ const PasswordDetailPage: React.FC<Props> = ({ id, goBack, handleEditClick }) =>
       {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
       {(passwordDetail) && (
         <div>
-          <EditButton onClick={() => {
-            if (handleEditClick) handleEditClick(passwordDetail.id);
-          }} />
-          <div className="bg-primary-40 text-primary-0 w-full py-2 px-4 rounded-md mb-6">
+          <EditButton
+            onClick={() => {
+              if (handleEditClick) handleEditClick(passwordDetail.id);
+              }}
+            styles="w-full"
+          />
+          <div className="bg-primary-40 text-primary-0 w-full py-2 px-4 rounded-md mt-2 mb-6">
             <h2 className="text-xl font-semibold">{passwordDetail.title}</h2>
           </div>
 
