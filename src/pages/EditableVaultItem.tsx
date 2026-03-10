@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { type VaultItem } from "../types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import Button from "../components/buttons/Button";
 
 type props = {
   vaultItem: VaultItem | null;
@@ -121,16 +122,10 @@ const EditableVaultItem = ({
           />
         </div>
 
-        
-
-        <button type="submit" disabled={loading}>
-          {buttonText}
-        </button>
-
-
+        {errorMessage && <div className="text-red-500 my-2">{errorMessage}</div>}
+        <Button text={buttonText} type="submit" isDisable={loading} />
       </form>
 
-      {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
     </div>
   );
 };
