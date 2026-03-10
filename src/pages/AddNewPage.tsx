@@ -3,20 +3,7 @@ import { type AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
-
-
-export interface VaultItem {
-  title: string;
-  username: string;
-  password: string;
-  url: string;
-  notes: string;
-
-  // Optional fields
-  id?: number;
-  created_at?: string;
-  updated_at?: string;
-};
+import type { VaultItem } from "../types";
 
 interface props {
   handleAddAndGoToDetail?: (newItemId: number) => void;

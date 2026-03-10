@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { type AxiosResponse } from "axios";
-import type { VaultItem } from "./AddNewPage";
+import { type VaultItem } from "../types";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import Button from "../components/buttons/Button";

@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import Button from "../components/buttons/Button";
-import { type VaultItem } from "./AddNewPage";
+import { type VaultItem } from "../types";
 
 type props = {
   vaultItem: VaultItem | null;
