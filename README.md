@@ -131,9 +131,6 @@ LeafLock requires a backend server to function. The backend repository can be fo
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 Author
 
-**Milan Bairagi**
-- GitHub: [@milanbairagi](https://github.com/milanbairagi)
-- Backend: [LockLeaf](https://github.com/milanbairagi/LockLeaf)
-
+## Other Resources
+- Backend: [LockLeaf](https://github.com/milanbairagi
