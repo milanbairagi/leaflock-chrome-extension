@@ -161,7 +161,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       )}
       {pageState === "detail" && selectedPasswordId !== null && (
         <PasswordDetailPage
-          id={selectedPasswordId}
+          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
           goBack={handleBackToList}
           handleEditClick={handleEditClick}
         />
