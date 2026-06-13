@@ -1,13 +1,11 @@
 import { useCallback, useState, useLayoutEffect, useEffect } from "react";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
-import VaultUnlockPage from "./pages/VaultUnlockPage";
 import RegisterPage from "./pages/RegisterPage";
 
 const Pages = {
   LOGIN: "login",
   REGISTER: "register",
-  VAULT_UNLOCK: "vault_unlock",
   HOME: "home",
 } as const;
 
@@ -19,10 +17,6 @@ function App() {
 
   const goToLogin = useCallback(() => setCurrentPage(Pages.LOGIN), []);
   const goToHome = useCallback(() => setCurrentPage(Pages.HOME), []);
-  const goToVaultUnlock = useCallback(
-    () => setCurrentPage(Pages.VAULT_UNLOCK),
-    [],
-  );
   const goToRegister = useCallback(() => setCurrentPage(Pages.REGISTER), []);
 
   const setPageState = useCallback(
@@ -80,11 +74,8 @@ function App() {
       {currentPage === Pages.REGISTER && (
         <RegisterPage goToHome={goToHome} goToLogin={goToLogin} />
       )}
-      {currentPage === Pages.VAULT_UNLOCK && (
-        <VaultUnlockPage goToLogin={goToLogin} goToHome={goToHome} />
-      )}
       {currentPage === Pages.HOME && (
-        <HomePage goToLogin={goToLogin} goToVaultUnlock={goToVaultUnlock} />
+        <HomePage goToLogin={goToLogin} />
       )}
     </div>
   );

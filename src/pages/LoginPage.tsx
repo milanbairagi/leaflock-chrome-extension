@@ -17,7 +17,7 @@ interface props {
 }
 
 const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,7 +29,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
+  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens, unlockVault } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
@@ -59,7 +59,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
         "/accounts/token/",
         {
-          username: username,
+          email: email,
           password: password,
         },
       );
@@ -68,10 +68,14 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         refreshToken: response.data.refresh,
       };
       await setAuthTokens(token);
+
+      // TODO: Derive vault unlock token from master password
+      await unlockVault("temp_vault_unlock_token");
+      goToHome();
     } catch (error) {
       handleError(error);
       if (isAuthError.current) {
-        setErrorMessage("Invalid username or password.");
+        setErrorMessage("Invalid email or password.");
       }
     } finally {
       setSubmitting(false);
@@ -90,10 +94,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         <p>Refresh Token: {refreshToken}</p> */}
 
         <TextInput
-          label="Username"
-          text={username}
-          setText={setUsername}
-          placeholder="Enter your username"
+          label="Email"
+          text={email}
+          setText={setEmail}
+          placeholder="Enter your email"
         />
 
         <PasswordInput
@@ -117,7 +121,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={!username || !(password.length >= 5) || submitting}
+          disabled={!email || !(password.length >= 5) || submitting}
         >
           {submitting ? "Logging in..." : "Login"}
         </button>

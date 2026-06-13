@@ -28,7 +28,7 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
   const {
     user,
     hasSetMasterPassword,
-    setHasSetMasterPassword,
+    // setHasSetMasterPassword,  // TODO
     isLoading,
     handleLogout,
   } = useUserCredential() ?? { user: null, isLoading: true };
@@ -72,32 +72,33 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
     return null;
   }
 
-  const setupMasterPassword = async (api: AxiosInstance) => {
-    /**
-     * If the master password is not set, set it up first.
-     */
-    try {
-      if (masterPassword !== masterPasswordConfirm) {
-        setErrorMessage("Master password and confirmation do not match.");
-        return;
-      }
+  // TODO: Remove this
+  // const setupMasterPassword = async (api: AxiosInstance) => {
+  //   /**
+  //    * If the master password is not set, set it up first.
+  //    */
+  //   try {
+  //     if (masterPassword !== masterPasswordConfirm) {
+  //       setErrorMessage("Master password and confirmation do not match.");
+  //       return;
+  //     }
 
-      const res = await api.post("accounts/master-key/", {
-        master_key: masterPassword,
-      });
-      if (res.status === 201) {
-        // fetch the vault unlock key after setting up the master password
-        await fetchVaultUnlockKey(api);
-        setHasSetMasterPassword(true);
-      }
-    } catch (error) {
-      handleError(error);
-      if (isAuthError.current) {
-        setErrorMessage("Failed to set up master password.");
-      }
-      return;
-    }
-  };
+  //     const res = await api.post("accounts/master-key/", {
+  //       master_key: masterPassword,
+  //     });
+  //     if (res.status === 201) {
+  //       // fetch the vault unlock key after setting up the master password
+  //       await fetchVaultUnlockKey(api);
+  //       setHasSetMasterPassword(true);
+  //     }
+  //   } catch (error) {
+  //     handleError(error);
+  //     if (isAuthError.current) {
+  //       setErrorMessage("Failed to set up master password.");
+  //     }
+  //     return;
+  //   }
+  // };
 
   const fetchVaultUnlockKey = async (api: AxiosInstance) => {
     /**
@@ -136,11 +137,12 @@ const VaultUnlockPage: React.FC<props> = ({ goToLogin, goToHome }) => {
     clearError();
     const apiInstance = api(accessToken, refreshToken, null, setAuthTokens);
 
-    if (!hasSetMasterPassword) {
-      await setupMasterPassword(apiInstance);
-    } else {
+    // TODO: CLean up
+    // if (!hasSetMasterPassword) {
+    //   await setupMasterPassword(apiInstance);
+    // } else {
       await fetchVaultUnlockKey(apiInstance);
-    }
+    // }
   };
 
   return (

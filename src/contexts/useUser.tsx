@@ -58,10 +58,11 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
     (async () => {
       try {
         const userData: User = await fetchUserData(apiInstance);
-        const hasSetMasterPasswordStatus = await checkHasSetMasterPassword(apiInstance);
+        // const hasSetMasterPasswordStatus = await checkHasSetMasterPassword(apiInstance);
+        // TODO: Need to remove check for master password set since we are now deriving vault unlock token from master password
 
         if (isMounted) setUser(userData);
-        if (isMounted) setHasSetMasterPassword(hasSetMasterPasswordStatus);
+        if (isMounted) setHasSetMasterPassword(true);
       } catch {
         if (isMounted) setUser(null);
       } finally {
@@ -74,18 +75,19 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
     };
   }, [refreshToken, apiInstance]);
 
-  const checkHasSetMasterPassword = async (api: AxiosInstance) : Promise<boolean | null> => {
-    try {
-      const res: AxiosResponse<{has_master_key: boolean}> = await api.get("accounts/master-key/");
-      if (res.status === 200) {
-        return res.data.has_master_key;
-      }
-      return null;
+  // TODO: Remove this function
+  // const checkHasSetMasterPassword = async (api: AxiosInstance) : Promise<boolean | null> => {
+  //   try {
+  //     const res: AxiosResponse<{has_master_key: boolean}> = await api.get("accounts/master-key/");
+  //     if (res.status === 200) {
+  //       return res.data.has_master_key;
+  //     }
+  //     return null;
 
-    } catch (error) {
-      return null;
-    }
-  };
+  //   } catch (error) {
+  //     return null;
+  //   }
+  // };
 
   const handleLogout = async () => {
     await clearAuthTokens();

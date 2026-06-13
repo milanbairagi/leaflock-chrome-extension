@@ -10,19 +10,21 @@ import { sendServiceMessage } from "../hooks/useServiceMessage";
 
 interface props {
   goToLogin: () => void;
-  goToVaultUnlock: () => void;
 }
 
-interface VaultItem {
+export type VaultItem = {
   id: number;
   title: string;
   username: string;
+  password: string;
   url: string;
+  notes: string;
   created_at: string;
   updated_at: string;
-}
+};
 
-const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
+
+const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pageState, setPageState] = useState<
@@ -45,8 +47,8 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
   const needsLogin = !isLoading && !user;
 
   useEffect(() => {
-    if (needsVaultUnlock) goToVaultUnlock();
-  }, [needsVaultUnlock, goToVaultUnlock]);
+    if (needsVaultUnlock) goToLogin();
+  }, [needsVaultUnlock]);
 
   useEffect(() => {
     if (needsLogin) goToLogin();
@@ -63,7 +65,7 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
 
     try {
       const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
-        "vaults/list-create/",
+        "vaults/blobs/",
       );
       setVaultItems(res.data);
     } catch (error) {
