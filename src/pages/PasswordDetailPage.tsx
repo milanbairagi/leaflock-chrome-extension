@@ -1,8 +1,8 @@
 import EditButton from "../components/buttons/EditButton";
-import type { VaultItem } from "./HomePage";
+import { type VaultItemFull } from "../types";
 
 interface Props {
-  vaultItem: VaultItem;
+  vaultItem: VaultItemFull;
   goBack?: () => void;
   handleEditClick?: (id: number) => void;
 };

@@ -7,25 +7,15 @@ import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
+import { type VaultItemFull } from "../types";
 
 interface props {
   goToLogin: () => void;
 }
 
-export type VaultItem = {
-  id: number;
-  title: string;
-  username: string;
-  password: string;
-  url: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-};
-
 
 const HomePage: React.FC<props> = ({ goToLogin }: props) => {
-  const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
+  const [vaultItems, setVaultItems] = useState<VaultItemFull[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pageState, setPageState] = useState<
     "list" | "detail" | "add" | "edit"
@@ -64,7 +54,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     );
 
     try {
-      const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
+      const res: AxiosResponse<VaultItemFull[]> = await apiInstance.get(
         "vaults/blobs/",
       );
       setVaultItems(res.data);
@@ -179,7 +169,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 };
 
 const ListView: React.FC<{
-  vaultItems: VaultItem[];
+  vaultItems: VaultItemFull[];
   handleClick: (id: number) => void;
 }> = ({ vaultItems, handleClick }) => {
   return (
