@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { type AxiosResponse } from "axios";
-import { type VaultItem } from "../types";
+import { type VaultItemFull } from "../types";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import Button from "../components/buttons/Button";
@@ -8,35 +8,17 @@ import EditableVaultItem from "./EditableVaultItem";
 
 
 interface Props {
-  id: number;
+  vaultItem: VaultItemFull;
   handleAddAndGoToDetail?: (id: number) => void;
 };
 
-const EditPage: React.FC<Props> = ({ id, handleAddAndGoToDetail }: Props) => {
-  const [vaultItemState, setVaultItemState] = useState<VaultItem | null>(null);
+const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props) => {
+  const [vaultItemState, setVaultItemState] = useState<VaultItemFull | null>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
 
   const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
-  const fetchVaultItem = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res: AxiosResponse<VaultItem> = await apiInstance.get(`vaults/retrieve-update/${id}/`);
-      setVaultItemState(res.data);
-      setErrorMessage(null);
-    } catch (error) {
-      setErrorMessage((prev) => (prev ? prev + " Failed to fetch vault item." : "Failed to fetch vault item."));
-      console.error("Error fetching vault item:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, accessToken, refreshToken, vaultUnlockToken, setAuthTokens]);
-
-  // Fetch the vault item when the component mounts
-  useEffect(() => {
-    void fetchVaultItem();
-  }, [fetchVaultItem]);
 
   const handleEditVaultItem = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -47,7 +29,7 @@ const EditPage: React.FC<Props> = ({ id, handleAddAndGoToDetail }: Props) => {
 
       setLoading(true);
       try {
-        const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/retrieve-update/${vaultItemState.id}/`, vaultItemState);
+        const res: AxiosResponse<VaultItemFull> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
         setVaultItemState(res.data);
         setErrorMessage(null);
 

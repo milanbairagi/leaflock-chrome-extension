@@ -158,7 +158,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       )}
       {pageState === "edit" && selectedPasswordId !== null && (
         <EditPage
-          id={selectedPasswordId}
+          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
           handleAddAndGoToDetail={handleAddAndGoToDetail}
         />
       )}

@@ -5,11 +5,11 @@
 
 import { useState } from "react";
 import Button from "../components/buttons/Button";
-import { type VaultItem } from "../types";
+import { type VaultItemFull } from "../types";
 
 type props = {
-  vaultItem: VaultItem | null;
-  setVaultItem: React.Dispatch<React.SetStateAction<VaultItem | null>>;
+  vaultItem: VaultItemFull | null;
+  setVaultItem: React.Dispatch<React.SetStateAction<VaultItemFull | null>>;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isEditing?: boolean;
   loading: boolean;
