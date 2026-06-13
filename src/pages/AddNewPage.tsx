@@ -31,7 +31,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     setLoading(true);
     const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
     try {
-      const res: AxiosResponse<VaultItemFull> = await apiInstance.post("vaults/list-create/", vaultItem);
+      const res: AxiosResponse<VaultItemFull> = await apiInstance.post("vaults/blobs/", vaultItem);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
     } catch (error) {
@@ -44,19 +44,6 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
 
   return (
     <div>
-      {/* <form onSubmit={fetchNewVaultItem}>
-        title: <input type="text" value={vaultItem?.title} onChange={(e) => setVaultItem({ ...vaultItem, title: e.target.value })} /><br />
-        username: <input type="text" value={vaultItem?.username} onChange={(e) => setVaultItem({ ...vaultItem, username: e.target.value })} /><br />
-        password: <input type="password" value={vaultItem?.password} onChange={(e) => setVaultItem({ ...vaultItem, password: e.target.value })} /><br />
-        url: <input type="text" value={vaultItem?.url} onChange={(e) => setVaultItem({ ...vaultItem, url: e.target.value })} /><br />
-        notes: <textarea value={vaultItem?.notes} onChange={(e) => setVaultItem({ ...vaultItem, notes: e.target.value })} /><br />
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-        {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
-      </form> */}
-
       <EditableVaultItem
         vaultItem={vaultItem}
         setVaultItem={setVaultItem}
