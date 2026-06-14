@@ -4,6 +4,7 @@ import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
+import { authHash, generateRandomSalt } from "../utils/cryptography";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
 
@@ -31,7 +32,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
+  const { accessToken, refreshToken, setAuthTokens } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
@@ -45,7 +46,6 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
   const apiInstance = api(
     accessToken,
     refreshToken,
-    vaultUnlockToken,
     setAuthTokens,
   );
   const { errorMessage, clearError, handleError } = useAxiosErrorHandler();
@@ -54,10 +54,23 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
     e.preventDefault();
     setSubmitting(true);
     clearError();
+    if (!userState.password || !userState.email) {
+      handleError(new Error("Email and password are required."));
+      setSubmitting(false);
+      return;
+    }
     try {
+      const hashedPassword = await authHash(userState.password, userState.email);
+      const salt = await generateRandomSalt();
+      const userPayload = {
+        ...userState,
+        password: hashedPassword,
+        salt: salt
+      };
+
       const response: AxiosResponse<UserType> = await apiInstance.post(
         "/accounts/register/",
-        userState,
+        userPayload,
       );
 
       if (response.status === 201) {
