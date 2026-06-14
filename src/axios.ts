@@ -9,7 +9,6 @@ type NullableString = string | null;
 const api = (
   accessToken: NullableString = null,
   refreshToken: NullableString = null,
-  vaultUnlockToken: NullableString = null,
   setAuthTokens: ((tokens: AuthTokens) => Promise<void>) | null = null
 ): AxiosInstance => {
 
@@ -25,7 +24,6 @@ const api = (
       if (!isRefreshEndpoint && accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
-      if (vaultUnlockToken) (config.headers["X-Vault-Unlock-Token"] = vaultUnlockToken);
       return config;
     },
     (error) => {
