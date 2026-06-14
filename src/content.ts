@@ -270,6 +270,7 @@ const handleAutofill = async () => {
   if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
     const vaultItems: FullVaultItem[] = [];
 
+    // TODO: Hasn't been implemented in background yet
     const res = await chrome.runtime.sendMessage({
       type: "GET_VAULT_ITEMS_FOR_URL",
       payload: {

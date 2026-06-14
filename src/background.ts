@@ -4,6 +4,7 @@
  */
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
+import { type VaultItemFull } from "./types";
 
 const REFRESH_TOKEN_STORAGE_KEY = "leaflock.refreshToken";
 const VAULT_UNLOCK_DURATION = 15 * 60 * 1000; // 15 minutes
@@ -13,7 +14,7 @@ const BASE_API_URL = import.meta.env.VITE_API_BASE_URL;
 // In-memory token storage (persists while service worker is active)
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
-let vaultUnlockToken: string | null = null;
+let vaultUnlockKey: CryptoKey | null = null;
 let vaultUnlockTimestamp: number | null = null;
 let accessTokenTimestamp: number | null = null;
 
@@ -21,23 +22,8 @@ let accessTokenTimestamp: number | null = null;
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
 const TOKEN_REFRESH_ALARM = "leaflock-refresh-token";
 
-type VaultItem = {
-  id: number;
-  title: string;
-  username: string;
-  email?: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-};
 
-type FullVaultItem = VaultItem & {
-  user: number;
-  password: string;
-  notes: string;
-};
-
-const vaultItems: VaultItem[] = [];
+const vaultBlobs: VaultItemFull[] = [];
 
 /**
  * Initialize the service worker
@@ -158,7 +144,7 @@ function isAccessTokenValid(): boolean {
  * Check if vault unlock token is still valid
  */
 function isVaultUnlockValid(): boolean {
-  if (!vaultUnlockToken || !vaultUnlockTimestamp) {
+  if (!vaultUnlockKey || !vaultUnlockTimestamp) {
     return false;
   }
   return Date.now() - vaultUnlockTimestamp < VAULT_UNLOCK_DURATION;
@@ -168,7 +154,7 @@ function isVaultUnlockValid(): boolean {
  * Lock the vault
  */
 function lockVault(): void {
-  vaultUnlockToken = null;
+  vaultUnlockKey = null;
   vaultUnlockTimestamp = null;
   chrome.alarms.clear(VAULT_LOCK_ALARM);
   console.log("[Background] Vault locked");
@@ -193,46 +179,10 @@ function notifyVaultLocked(): void {
 function notifyContentVaultStatus(): void {
   sendMessageToContent({
     type: "VAULT_STATUS",
-    payload: (vaultUnlockToken) ? "unlock" : "lock"
+    payload: (vaultUnlockKey) ? "unlock" : "lock"
   });
 }
 
-async function fetchVaultDetail(id: number): Promise<FullVaultItem | null> {
-  try {
-    const res: Response = await fetch(
-      `${BASE_API_URL}/vaults/retrieve-update/${id}/`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken || ""}`,
-          "X-Vault-Unlock-Token": vaultUnlockToken || "",
-        },
-      },
-    );
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch vault details: ${res.status}`);
-    }
-
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    console.error("[Background] Error fetching vault details:", error);
-    return null;
-  }
-}
-
-async function getFullVaultItems(ids: number[]): Promise<FullVaultItem[]> {
-  const details: FullVaultItem[] = [];
-  for (const id of ids) {
-    const detail = await fetchVaultDetail(id);
-    if (detail) {
-      details.push(detail);
-    }
-  }
-  return details;
-}
 
 /**
  * Handle alarm events
@@ -277,15 +227,15 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           break;
         }
 
-        case "GET_VAULT_UNLOCK_TOKEN": {
+        case "GET_VAULT_UNLOCK_KEY": {
           const isValid = isVaultUnlockValid();
           sendResponse({
             success: true,
-            vaultUnlockToken: isValid ? vaultUnlockToken : null,
+            vaultUnlockKey: isValid ? vaultUnlockKey : null,
           });
 
           // If expired, clear it
-          if (!isValid && vaultUnlockToken) {
+          if (!isValid && vaultUnlockKey) {
             lockVault();
           }
 
@@ -330,8 +280,8 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "UNLOCK_VAULT": {
-          const { token } = message.payload;
-          vaultUnlockToken = token;
+          const { key } = message.payload;
+          vaultUnlockKey = key;
           vaultUnlockTimestamp = Date.now();
 
           // Schedule auto-lock
@@ -378,40 +328,23 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         // store vault items in memory
         case "STORE_VAULT_ITEMS": {
           const { items } = message.payload;
-          vaultItems.length = 0;
-          vaultItems.push(...items);
+          if (!Array.isArray(items) || !items.every((item) => typeof item === "object" && item !== null)) {
+            sendResponse({ success: false, error: "Invalid items format" });
+            return;
+          }
+          vaultBlobs.length = 0;
+          vaultBlobs.push(...items);
           console.log("[Background] Stored vault items in memory");
           sendResponse({ success: true });
           break;
         }
 
+        // TODO: Use this to get vault items for autofill based on URL in content script
+        // Since vault items are encrypted needs to be decrypted in content script after retrieval
         case "GET_VAULT_ITEMS_FOR_URL": {
-          if (vaultItems.length === 0) {
-            sendResponse({ success: false, error: "No vault items stored" });
-            return;
-          }
-          const { url } = message.payload;
-
-          // Filter items by URL if provided
-          const origin = new URL(url).origin;
-          // matchedItems doesn't include encrypted fields like passwords
-          const matchedItems = vaultItems.filter((item) => {
-            try {
-              const itemOrigin = new URL(item.url).origin;
-              return itemOrigin === origin;
-            } catch (error) {
-              if (error instanceof TypeError) {
-                return item.url === url;
-              }
-              return false;
-            }
-          });
-
-          const fullVaultItems = await getFullVaultItems(
-            matchedItems.map((item) => item.id),
-          );
-
-          sendResponse({ success: true, items: fullVaultItems });
+          // const { url } = message.payload;
+          // Implementation for filtering vault items by URL
+          sendResponse({ success: true, blobs: vaultBlobs });
           break;
         }
 
