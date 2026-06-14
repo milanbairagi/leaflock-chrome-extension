@@ -23,13 +23,13 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
+  const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
 
   const fetchNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setLoading(true);
-    const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
+    const apiInstance = api(accessToken, refreshToken, setAuthTokens);
     try {
       const res: AxiosResponse<VaultItemFull> = await apiInstance.post("vaults/blobs/", vaultItem);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
@@ -40,7 +40,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, refreshToken, vaultUnlockToken, setAuthTokens, vaultItem]);
+  }, [accessToken, refreshToken, setAuthTokens, vaultItem]);
 
   return (
     <div>
