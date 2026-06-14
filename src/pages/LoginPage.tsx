@@ -7,6 +7,7 @@ import {
 } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
+import { authHash, deriveKey } from "../utils/cryptography";
 import logo from "../assets/images/Logo.svg";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
@@ -29,7 +30,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens, unlockVault } =
+  const { accessToken, refreshToken, setAuthTokens, unlockVault } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
@@ -47,8 +48,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   const apiInstance = api(
     accessToken,
     refreshToken,
-    vaultUnlockToken,
-    setAuthTokens,
+    setAuthTokens
   );
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -56,11 +56,12 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     setSubmitting(true);
     clearError();
     try {
+      const hashedPassword = await authHash(password, email);
       const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
         "/accounts/token/",
         {
           email: email,
-          password: password,
+          password: hashedPassword,
         },
       );
       const token: AuthTokens = {
@@ -69,8 +70,14 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       };
       await setAuthTokens(token);
 
-      // TODO: Derive vault unlock token from master password
-      await unlockVault("temp_vault_unlock_token");
+      // Get the salt from the server and use it to derive the vault unlock key
+      const responseSalt = await apiInstance.get("/accounts/salt/");
+      const salt = responseSalt.data.salt;
+      const vaultUnlockKey = await deriveKey(password, salt);
+
+      // Unlock the vault with the derived key
+      await unlockVault(vaultUnlockKey);
+
       goToHome();
     } catch (error) {
       handleError(error);
