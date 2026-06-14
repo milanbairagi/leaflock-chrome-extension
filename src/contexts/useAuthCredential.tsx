@@ -52,8 +52,8 @@ type AuthCredentialContextValue = {
   setAuthTokens: (tokens: AuthTokens) => Promise<void>;
   clearAuthTokens: () => Promise<void>;
 
-  vaultUnlockToken: NullableString;
-  unlockVault: (token: string) => Promise<void>;
+  vaultUnlockKey: CryptoKey | null;
+  unlockVault: (vaultUnlockKey: CryptoKey) => Promise<void>;
   lockVault: () => Promise<void>;
 };
 
@@ -69,7 +69,7 @@ export const AuthCredentialProvider = ({
   const [isHydrated, setIsHydrated] = useState(false);
   const [accessToken, setAccessToken] = useState<NullableString>(null);
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
-  const [vaultUnlockToken, setVaultUnlockToken] = useState<NullableString>(null);
+  const [vaultUnlockKey, setVaultUnlockKey] = useState<CryptoKey | null>(null);
 
   // Sync currentAccessToken for axios interceptor
   useEffect(() => {
@@ -93,8 +93,8 @@ export const AuthCredentialProvider = ({
           sendMessageToBackground<{ refreshToken: string | null }>({
             type: "GET_REFRESH_TOKEN",
           }),
-          sendMessageToBackground<{ vaultUnlockToken: string | null }>({
-            type: "GET_VAULT_UNLOCK_TOKEN",
+          sendMessageToBackground<{ vaultUnlockKey: CryptoKey | null }>({
+            type: "GET_VAULT_UNLOCK_KEY",
           }),
         ]);
 
@@ -102,7 +102,7 @@ export const AuthCredentialProvider = ({
 
         setAccessToken(accessResponse.accessToken);
         setRefreshToken(refreshResponse.refreshToken);
-        setVaultUnlockToken(vaultResponse.vaultUnlockToken);
+        setVaultUnlockKey(vaultResponse.vaultUnlockKey);
         setIsHydrated(true);
       } catch (error) {
         console.error("[AuthCredential] Failed to hydrate from service worker:", error);
@@ -121,7 +121,7 @@ export const AuthCredentialProvider = ({
   useEffect(() => {
     const handleMessage = (message: { type: string }) => {
       if (message.type === "VAULT_LOCKED") {
-        setVaultUnlockToken(null);
+        setVaultUnlockKey(null);
       }
     };
 
@@ -156,16 +156,16 @@ export const AuthCredentialProvider = ({
     });
   }, []);
 
-  const unlockVault = useCallback(async (token: string) => {
-    setVaultUnlockToken(token);
+  const unlockVault = useCallback(async (vaultUnlockKey: CryptoKey) => {
+    setVaultUnlockKey(vaultUnlockKey);
     await sendMessageToBackground({
       type: "UNLOCK_VAULT",
-      payload: { token }
+      payload: { key: vaultUnlockKey },
     });
   }, []);
 
   const lockVault = useCallback(async () => {
-    setVaultUnlockToken(null);
+    setVaultUnlockKey(null);
     await sendMessageToBackground({
       type: "LOCK_VAULT",
     });
@@ -178,7 +178,7 @@ export const AuthCredentialProvider = ({
       refreshToken,
       setAuthTokens,
       clearAuthTokens,
-      vaultUnlockToken,
+      vaultUnlockKey,
       unlockVault,
       lockVault,
     }),
@@ -188,7 +188,7 @@ export const AuthCredentialProvider = ({
       refreshToken,
       setAuthTokens,
       clearAuthTokens,
-      vaultUnlockToken,
+      vaultUnlockKey,
       unlockVault,
       lockVault,
     ]
