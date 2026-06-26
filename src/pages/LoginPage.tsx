@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AxiosResponse } from "axios";
 import api from "../axios";
 import {
@@ -30,32 +30,24 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { accessToken, refreshToken, setAuthTokens, unlockVault } =
+  const { accessToken, setAuthTokens, unlockVault } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
     isLoading: true,
   };
 
-  useEffect(() => {
-    if (!isLoading && user) goToHome();
-  }, [isLoading, user, goToHome]);
-
   interface LoginResponseData {
     access: string;
     refresh: string;
   }
-  const apiInstance = api(
-    accessToken,
-    refreshToken,
-    setAuthTokens
-  );
+  const apiInstance = api(accessToken);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitting(true);
     clearError();
     try {
+      setSubmitting(true);
       const hashedPassword = await authHash(password, email);
       const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
         "/accounts/token/",
@@ -69,14 +61,18 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         refreshToken: response.data.refresh,
       };
       await setAuthTokens(token);
+      
+      const freshApi = api(accessToken);
 
       // Get the salt from the server and use it to derive the vault unlock key
-      const responseSalt = await apiInstance.get("/accounts/salt/");
+      const responseSalt = await freshApi.get("/accounts/salt/");
       const salt = responseSalt.data.salt;
       const vaultUnlockKey = await deriveKey(password, salt);
 
       // Unlock the vault with the derived key
       await unlockVault(vaultUnlockKey);
+
+      console.log(email, password, salt, vaultUnlockKey);
 
       goToHome();
     } catch (error) {
@@ -88,7 +84,14 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       setSubmitting(false);
     }
   };
-
+  console.log("LoginPage rendered");
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (user) {
+    goToHome();
+    return null;
+  }
   return (
     <div className="p-5 rounded-md h-full">
       <div className="flex justify-center items-center flex-col mb-8">
@@ -96,10 +99,6 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         <p className="text-center">Secure Password Manager</p>
       </div>
       <form onSubmit={handleLogin} className="flex flex-col gap-4">
-        {/* Test */}
-        {/* <p>Access Token: {accessToken}</p>
-        <p>Refresh Token: {refreshToken}</p> */}
-
         <TextInput
           label="Email"
           text={email}
