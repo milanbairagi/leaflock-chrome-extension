@@ -70,19 +70,16 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   }, [accessToken, refreshToken, setAuthTokens, vaultUnlockKey]);
 
   const handleBackToList = () => {
-    console.log("Back to list");
     setPageState("list");
     setSelectedPasswordId(null);
   };
 
   const handleShowDetail = (id: number) => {
-    console.log("Show detail for id:", id);
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
   const handleAddAndGoToDetail = (id: number) => {
-    console.log("Add new and go to detail for id:", id);
     // Refresh the list then go to detail view
     fetchPasswordLists();
     setSelectedPasswordId(id);
@@ -90,7 +87,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   };
 
   const handleEditClick = (id: number) => {
-    console.log("Edit item for id:", id);
     setPageState("edit");
     setSelectedPasswordId(id);
   };
@@ -99,8 +95,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   if (isLoading) {
     return <div>Loading...</div>;
   }
-
-  console.log("Page State: ", pageState, "Selected Password ID: ", selectedPasswordId);
 
   return (
     <div className="p-5 rounded-md">

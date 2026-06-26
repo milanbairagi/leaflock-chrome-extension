@@ -72,8 +72,6 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       // Unlock the vault with the derived key
       await unlockVault(vaultUnlockKey);
 
-      console.log(email, password, salt, vaultUnlockKey);
-
       goToHome();
     } catch (error) {
       handleError(error);
@@ -84,7 +82,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       setSubmitting(false);
     }
   };
-  console.log("LoginPage rendered");
+  
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -92,6 +90,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     goToHome();
     return null;
   }
+  
   return (
     <div className="p-5 rounded-md h-full">
       <div className="flex justify-center items-center flex-col mb-8">

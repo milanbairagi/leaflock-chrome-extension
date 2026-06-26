@@ -11,7 +11,6 @@ export type User = {
   updated_at: string;
 };
 
-console.log("[useUserCredential]");
 
 interface ContextResponse {
   user: User | null;

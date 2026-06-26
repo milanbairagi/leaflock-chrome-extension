@@ -23,7 +23,6 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
   const handleEditVaultItem = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      console.log("Submitting edit for vault item:", vaultItemState);
       
       if (!vaultItemState) return;
 
