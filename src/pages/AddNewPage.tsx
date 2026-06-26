@@ -29,7 +29,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     e.preventDefault();
 
     setLoading(true);
-    const apiInstance = api(accessToken, refreshToken, setAuthTokens);
+    const apiInstance = api(accessToken);
     try {
       const res: AxiosResponse<VaultItemFull> = await apiInstance.post("vaults/blobs/", vaultItem);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);

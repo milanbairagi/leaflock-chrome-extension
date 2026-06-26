@@ -16,9 +16,9 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
   const [vaultItemState, setVaultItemState] = useState<VaultItemFull | null>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
+  const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
 
-  const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
+  const apiInstance = api(accessToken);
 
   const handleEditVaultItem = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,7 +48,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
       }
 
     },
-    [vaultItemState, accessToken, refreshToken, vaultUnlockToken, setAuthTokens]
+    [vaultItemState, accessToken, refreshToken, setAuthTokens]
   );
 
 
