@@ -11,12 +11,12 @@ export type User = {
   updated_at: string;
 };
 
+console.log("[useUserCredential]");
+
 interface ContextResponse {
   user: User | null;
   isLoading: boolean;
   handleLogout : () => Promise<void>;
-  hasSetMasterPassword: boolean | null;
-  setHasSetMasterPassword: (value: boolean | null) => void;
 };
 
 const fetchUserData = async (api: AxiosInstance): Promise<User> => {
@@ -34,39 +34,33 @@ const UserCredentialContext = createContext<ContextResponse | null>(null);
 
 export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) => {
   const [user, setUser] = useState<User | null>(null);
-  const [hasSetMasterPassword, setHasSetMasterPassword] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const {accessToken, refreshToken, setAuthTokens, clearAuthTokens, lockVault} = useAuthCredential();
+  const {accessToken, refreshToken, lockVault} = useAuthCredential();
   const apiInstance = useMemo(
-    () => api(accessToken, refreshToken, null, setAuthTokens),
-    [accessToken, refreshToken, setAuthTokens]
+    () => api(accessToken),
+    [accessToken]
   );
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
 
-    if (!refreshToken) {
+    if (!accessToken || !refreshToken) {
       setUser(null);
       setIsLoading(false);
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
     // Fetch user data
     (async () => {
       try {
+        setIsLoading(true);
+        if (!isMounted) return;
         const userData: User = await fetchUserData(apiInstance);
-        // const hasSetMasterPasswordStatus = await checkHasSetMasterPassword(apiInstance);
-        // TODO: Need to remove check for master password set since we are now deriving vault unlock token from master password
-
-        if (isMounted) setUser(userData);
-        if (isMounted) setHasSetMasterPassword(true);
+        setUser(userData);
       } catch {
-        if (isMounted) setUser(null);
+        setUser(null);
       } finally {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       }
     })();
 
@@ -75,28 +69,13 @@ export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) =>
     };
   }, [refreshToken, apiInstance]);
 
-  // TODO: Remove this function
-  // const checkHasSetMasterPassword = async (api: AxiosInstance) : Promise<boolean | null> => {
-  //   try {
-  //     const res: AxiosResponse<{has_master_key: boolean}> = await api.get("accounts/master-key/");
-  //     if (res.status === 200) {
-  //       return res.data.has_master_key;
-  //     }
-  //     return null;
-
-  //   } catch (error) {
-  //     return null;
-  //   }
-  // };
-
   const handleLogout = async () => {
-    await clearAuthTokens();
     await lockVault();
     setUser(null);
   };
 
   return (
-    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout, hasSetMasterPassword, setHasSetMasterPassword }}>
+    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout }}>
       {children}
     </UserCredentialContext.Provider>
   );

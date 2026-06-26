@@ -29,8 +29,6 @@ const sendMessageToBackground = <T,>(message: {
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
-      } else if (response?.success === false) {
-        reject(new Error(response.error || "Unknown error"));
       } else {
         resolve(response as T);
       }
@@ -39,8 +37,8 @@ const sendMessageToBackground = <T,>(message: {
 };
 
 export type AuthTokens = {
-  accessToken: string;
-  refreshToken?: string;
+  accessToken: string | null;
+  refreshToken: string | null;
 };
 
 type AuthCredentialContextValue = {
@@ -50,7 +48,6 @@ type AuthCredentialContextValue = {
   refreshToken: NullableString;
 
   setAuthTokens: (tokens: AuthTokens) => Promise<void>;
-  clearAuthTokens: () => Promise<void>;
 
   vaultUnlockKey: CryptoKey | null;
   unlockVault: (vaultUnlockKey: CryptoKey) => Promise<void>;
@@ -142,18 +139,10 @@ export const AuthCredentialProvider = ({
     });
     if (response.success) {
       setAccessToken(tokens.accessToken);
-      setRefreshToken(tokens.refreshToken || null);
+      setRefreshToken(tokens.refreshToken);
     } else {
       throw new Error("Failed to set auth tokens in background");
     }
-  }, []);
-
-  const clearAuthTokens = useCallback(async () => {
-    setAccessToken(null);
-    setRefreshToken(null);
-    await sendMessageToBackground({
-      type: "CLEAR_AUTH_TOKENS",
-    });
   }, []);
 
   const unlockVault = useCallback(async (vaultUnlockKey: CryptoKey) => {
@@ -177,7 +166,6 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      clearAuthTokens,
       vaultUnlockKey,
       unlockVault,
       lockVault,
@@ -187,7 +175,6 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      clearAuthTokens,
       vaultUnlockKey,
       unlockVault,
       lockVault,
