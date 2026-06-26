@@ -26,15 +26,12 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const { user, isLoading, handleLogout } = useUserCredential() ?? {
     user: null,
     isLoading: true,
-    handleLogout: async () => {
-      void 0;
-    },
+    handleLogout: null,
   };
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
-    useAuthCredential();
+  const { accessToken, refreshToken, vaultUnlockKey, setAuthTokens } = useAuthCredential();
 
-  const needsVaultUnlock = !vaultUnlockToken;
-  const needsLogin = !isLoading && !user;
+  const needsVaultUnlock = !vaultUnlockKey;
+  const needsLogin = (!isLoading && !user) || !accessToken || !refreshToken;
 
   useEffect(() => {
     if (needsVaultUnlock) goToLogin();
@@ -44,37 +41,9 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
-  const fetchPasswordLists = useCallback(async () => {
-    if (!vaultUnlockToken) return;
-    const apiInstance = api(
-      accessToken,
-      refreshToken,
-      vaultUnlockToken,
-      setAuthTokens,
-    );
-
-    try {
-      const res: AxiosResponse<VaultItemFull[]> = await apiInstance.get(
-        "vaults/blobs/",
-      );
-      setVaultItems(res.data);
-    } catch (error) {
-      setErrorMessage("Failed to fetch password lists.");
-    }
-  }, [accessToken, refreshToken, setAuthTokens, vaultUnlockToken]);
-
   useEffect(() => {
-    if (needsVaultUnlock) return;
-    if (isLoading) return;
-    if (!user) return;
-    const timeoutId = globalThis.setTimeout(() => {
-      void fetchPasswordLists();
-    }, 0);
-
-    return () => {
-      globalThis.clearTimeout(timeoutId);
-    };
-  }, [fetchPasswordLists, isLoading, needsVaultUnlock, user]);
+    fetchPasswordLists();
+  }, []);
 
   useEffect(() => {
     if (vaultItems.length === 0) return;
@@ -86,25 +55,34 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     });
   }, [vaultItems]);
 
-  if (needsVaultUnlock) return null;
+  const fetchPasswordLists = useCallback(async () => {
+    if (!vaultUnlockKey) return;
+    const apiInstance = api(accessToken);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (needsLogin) return null;
+    try {
+      const res: AxiosResponse<VaultItemFull[]> = await apiInstance.get(
+        "vaults/blobs/",
+      );
+      setVaultItems(res.data);
+    } catch (error) {
+      setErrorMessage("Failed to fetch password lists.");
+    }
+  }, [accessToken, refreshToken, setAuthTokens, vaultUnlockKey]);
 
   const handleBackToList = () => {
+    console.log("Back to list");
     setPageState("list");
     setSelectedPasswordId(null);
   };
 
   const handleShowDetail = (id: number) => {
+    console.log("Show detail for id:", id);
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
   const handleAddAndGoToDetail = (id: number) => {
+    console.log("Add new and go to detail for id:", id);
     // Refresh the list then go to detail view
     fetchPasswordLists();
     setSelectedPasswordId(id);
@@ -112,9 +90,17 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   };
 
   const handleEditClick = (id: number) => {
+    console.log("Edit item for id:", id);
     setPageState("edit");
     setSelectedPasswordId(id);
   };
+
+  if (needsLogin || needsVaultUnlock) return null;
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  console.log("Page State: ", pageState, "Selected Password ID: ", selectedPasswordId);
 
   return (
     <div className="p-5 rounded-md">
@@ -129,6 +115,8 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       </div>
 
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+
+      <h1>{pageState}</h1>
 
       {pageState === "add" && (
         <>
