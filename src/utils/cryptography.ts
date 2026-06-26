@@ -114,22 +114,3 @@ export const generateRandomSalt = (length: number = 16): Uint8Array => crypto.ge
 const buftoBase64 = (buf: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(buf)));
 
 const base64toBuf = (b64: string) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-
-
-// Test
-const masterPassword = 'my_secure_password';
-const salt = generateRandomSalt();
-
-deriveKey(masterPassword, salt)
-  .then(async key => {
-
-    const { ciphertext, iv } = await encryptData('Hello, World!', key);
-    console.log('Encrypted data:', { ciphertext, iv });
-
-    const decryptedText = await decryptData(ciphertext, iv, key);
-    console.log('Decrypted text:', decryptedText);
-  })
-
-  .catch(err => {
-    console.error('Error deriving key:', err);
-  });
