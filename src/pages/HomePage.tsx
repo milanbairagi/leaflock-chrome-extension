@@ -8,6 +8,7 @@ import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 import { type VaultItem } from "../types";
+import { decryptVault } from "../hooks/useCryptoVault";
 
 interface props {
   goToLogin: () => void;
@@ -63,7 +64,11 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
         "vaults/blobs/",
       );
-      setVaultItems(res.data);
+      const vaults = res.data;
+      const decryptedVaults = await Promise.all(
+        vaults.map((vault) => decryptVault(vault, vaultUnlockKey))
+      );
+      setVaultItems(decryptedVaults);
     } catch (error) {
       setErrorMessage("Failed to fetch password lists.");
     }

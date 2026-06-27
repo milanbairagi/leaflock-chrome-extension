@@ -5,6 +5,7 @@ import { generateIV } from "../utils/cryptography";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
 import type { VaultItem, CreateVaultItemPayload } from "../types";
+import { encryptVault } from "../hooks/useCryptoVault";
 
 interface props {
   handleAddAndGoToDetail?: (newItemId: number) => void;
@@ -22,7 +23,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
+  const { accessToken, refreshToken, setAuthTokens, vaultUnlockKey } = useAuthCredential();
 
   const fetchNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,18 +31,26 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     setLoading(true);
     const apiInstance = api(accessToken);
     try {
+      if (!vaultUnlockKey) {
+        throw new Error("Vault unlock key is missing.");
+      }
+
       const iv = generateIV();
-      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", { ...vaultItem, iv });
+      const vaultItemWithIV = { ...vaultItem, iv };
+      const encryptedVaultItem = await encryptVault(vaultItemWithIV, vaultUnlockKey);
+
+      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", encryptedVaultItem);
       console.log("New vault item created:", res.data);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
+
     } catch (error) {
       setErrorMessage("Failed to fetch new vault item.");
       console.error("Error fetching new vault item:", error);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, refreshToken, setAuthTokens, vaultItem]);
+  }, [accessToken, refreshToken, setAuthTokens, vaultItem, vaultUnlockKey]);
 
   return (
     <div>
