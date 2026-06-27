@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { type AxiosResponse } from "axios";
 import api from "../axios";
+import { generateIV } from "../utils/cryptography";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
 import type { VaultItem, CreateVaultItemPayload } from "../types";
@@ -28,7 +29,9 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     setLoading(true);
     const apiInstance = api(accessToken);
     try {
-      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", vaultItem);
+      const iv = await generateIV();
+      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", { ...vaultItem, iv });
+      console.log("New vault item created:", res.data);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
     } catch (error) {
