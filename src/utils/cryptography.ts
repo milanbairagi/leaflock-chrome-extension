@@ -61,15 +61,25 @@ export async function authHash(password: string, email: string): Promise<string>
   return buftoBase64(authBits);
 }
 
+export function generateIV(): string {
+  const iv = crypto.getRandomValues(new Uint8Array(12)); // AES-GCM standard IV length is 12 bytes
+  return buftoBase64(iv);
+}
+
 /*
  * Encrypts data using AES-GCM
  * @param plaintext - The plaintext string to encrypt
  * @param key - The CryptoKey to use for encryption
  * @return An object containing the base64 encoded initialization vector and ciphertext
  */
-export async function encryptData(plaintext: string, key: CryptoKey): Promise<{ iv: string; ciphertext: string }> {
+export async function encryptData(plaintext: string, key: CryptoKey, ivString: string | null = null): Promise<{ iv: string; ciphertext: string }> {
   const enc = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  let iv;
+  if (ivString) {
+    iv = base64toBuf(ivString);
+  } else {
+    iv = base64toBuf(generateIV());
+  }
 
   const ciphertext = await crypto.subtle.encrypt(
     {
