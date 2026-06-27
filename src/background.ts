@@ -4,7 +4,7 @@
  */
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
-import { type VaultItemFull } from "./types";
+import { type VaultItem } from "./types";
 
 const UNLOCK_DURATION = 15 * 60 * 1000; // 15 minutes
 
@@ -18,7 +18,7 @@ let unlockTimestamp: number | null = null;
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
 
 
-const vaultBlobs: VaultItemFull[] = [];
+const vaultBlobs: VaultItem[] = [];
 
 
 /**

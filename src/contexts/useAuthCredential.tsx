@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { type AuthTokens } from "../types";
 
 type NullableString = string | null;
 interface BackgroundMsgResType {
@@ -34,11 +35,6 @@ const sendMessageToBackground = <T,>(message: {
       }
     });
   });
-};
-
-export type AuthTokens = {
-  accessToken: string | null;
-  refreshToken: string | null;
 };
 
 type AuthCredentialContextValue = {

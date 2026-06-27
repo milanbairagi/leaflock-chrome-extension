@@ -3,21 +3,18 @@ import { type AxiosResponse } from "axios";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
-import type { VaultItemFull } from "../types";
+import type { VaultItem, CreateVaultItemPayload } from "../types";
 
 interface props {
   handleAddAndGoToDetail?: (newItemId: number) => void;
 }
 const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
-  const [vaultItem, setVaultItem] = useState<VaultItemFull | null>({
-    id: 0,
+  const [vaultItem, setVaultItem] = useState<CreateVaultItemPayload>({
     title: "",
     username: "",
     password: "",
     url: "",
     notes: "",
-    created_at: "",
-    updated_at: ""
   });
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -31,7 +28,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     setLoading(true);
     const apiInstance = api(accessToken);
     try {
-      const res: AxiosResponse<VaultItemFull> = await apiInstance.post("vaults/blobs/", vaultItem);
+      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", vaultItem);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
     } catch (error) {

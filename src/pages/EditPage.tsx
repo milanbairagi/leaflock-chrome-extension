@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { type AxiosResponse } from "axios";
-import { type VaultItemFull } from "../types";
+import { type VaultItem } from "../types";
 import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import Button from "../components/buttons/Button";
@@ -8,12 +8,12 @@ import EditableVaultItem from "./EditableVaultItem";
 
 
 interface Props {
-  vaultItem: VaultItemFull;
+  vaultItem: VaultItem;
   handleAddAndGoToDetail?: (id: number) => void;
 };
 
 const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props) => {
-  const [vaultItemState, setVaultItemState] = useState<VaultItemFull | null>(vaultItem);
+  const [vaultItemState, setVaultItemState] = useState<VaultItem>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
@@ -28,7 +28,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
 
       setLoading(true);
       try {
-        const res: AxiosResponse<VaultItemFull> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
+        const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
         setVaultItemState(res.data);
         setErrorMessage(null);
 

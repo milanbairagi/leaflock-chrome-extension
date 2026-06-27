@@ -1,13 +1,11 @@
 import { useState } from "react";
 import type { AxiosResponse } from "axios";
 import api from "../axios";
-import {
-  useAuthCredential,
-  type AuthTokens,
-} from "../contexts/useAuthCredential";
+import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import { authHash, deriveKey } from "../utils/cryptography";
+import type { AuthTokens } from "../types";
 import logo from "../assets/images/Logo.svg";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";

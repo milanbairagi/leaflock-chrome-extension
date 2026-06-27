@@ -2,15 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import api from "../axios";
 import { type AxiosInstance, type AxiosResponse } from "axios";
 import { useAuthCredential } from "./useAuthCredential";
-
-export type User = {
-  id: number;
-  username: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-};
-
+import { type User } from "../types";
 
 interface ContextResponse {
   user: User | null;
