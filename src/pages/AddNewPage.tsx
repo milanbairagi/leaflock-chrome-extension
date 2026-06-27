@@ -14,6 +14,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     title: "",
     username: "",
     password: "",
+    iv: "",
     url: "",
     notes: "",
   });
@@ -29,7 +30,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     setLoading(true);
     const apiInstance = api(accessToken);
     try {
-      const iv = await generateIV();
+      const iv = generateIV();
       const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", { ...vaultItem, iv });
       console.log("New vault item created:", res.data);
       if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);

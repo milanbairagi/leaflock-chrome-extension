@@ -22,6 +22,7 @@ export type VaultItem = {
   title: string;
   username: string;
   password: string;
+  iv: string;
   url: string;
   notes: string;
   created_at: string;
