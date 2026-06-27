@@ -1,4 +1,4 @@
-/*
+/**
  * Derives a cryptographic key from a password and salt using PBKDF2
  * @param password - The password string
  * @param salt - A Uint8Array representing the salt
@@ -29,7 +29,7 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
   );
 }
 
-/*
+/**
  * Hashes a password using PBKDF2 with the email as salt
  * @param password - The password string
  * @param email - The email string to use as salt
@@ -66,7 +66,7 @@ export function generateIV(): string {
   return buftoBase64(iv);
 }
 
-/*
+/**
  * Encrypts data using AES-GCM
  * @param plaintext - The plaintext string to encrypt
  * @param key - The CryptoKey to use for encryption
@@ -97,7 +97,7 @@ export async function encryptData(plaintext: string, key: CryptoKey, ivString: s
 }
 
 
-/*
+/**
  * Decrypts data using AES-GCM
  * @param ciphertext - Base64 encoded ciphertext
  * @param iv - Base64 encoded initialization vector
