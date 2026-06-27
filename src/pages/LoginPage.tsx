@@ -60,7 +60,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       };
       await setAuthTokens(token);
       
-      const freshApi = api(accessToken);
+      const freshApi = api(token.accessToken);
 
       // Get the salt from the server and use it to derive the vault unlock key
       const responseSalt = await freshApi.get("/accounts/salt/");
