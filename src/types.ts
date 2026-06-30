@@ -35,3 +35,5 @@ export type CreateVaultItemPayload = Omit<
 > & {
   password: string;
 };
+
+export type StorageArea = "local" | "session";
