@@ -5,21 +5,78 @@
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
 import { type VaultItem } from "./types";
+import { storageGet, storageSet } from "./utils/storage";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_BLOBS_KEY, UNLOCK_DURATION } from "./constants";
 
-const UNLOCK_DURATION = 15 * 60 * 1000; // 15 minutes
+let isHydrated = false; // Indicates if the service worker has loaded initial state from storage
 
 // In-memory token storage (persists while service worker is active)
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
 let vaultUnlockKey: CryptoKey | null = null;
 let unlockTimestamp: number | null = null;
+
+const vaultBlobs: VaultItem[] = [];
 
 // Alarm names
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
 
+/**
+ * Initialize the service worker
+ * - Load refresh token from storage
+ * - Set up alarms
+ */
+chrome.runtime.onStartup.addListener(async () => {
+  console.log("[Background] Service worker starting up");
+  await initialize();
+});
 
-const vaultBlobs: VaultItem[] = [];
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log("[Background] Extension installed/updated");
+  await initialize();
+});
 
+async function initialize() {
+  try {
+    isHydrated = false;
+
+    // Load unlock timestamp from storage
+    const storedUnlockTimestamp = await storageGet(UNLOCK_TIMESTAMP_KEY, "session");
+    unlockTimestamp = storedUnlockTimestamp || null;
+    
+    // If the vault is unlocked, schedule auto-lock
+    if (isVaultUnlockValid()) {
+      chrome.alarms.clear(VAULT_LOCK_ALARM);
+      scheduleVaultLock();
+      console.log("[Background] Vault is unlocked, auto-lock scheduled");
+    } else {
+      lockVault();
+      console.log("[Background] Vault is locked on startup");
+    }
+
+    initializeVaultBlobs();
+
+  } catch (error) {
+    console.error("[Background] Error initializing service worker:", error);
+  } finally {
+    isHydrated = true;
+  }
+}
+
+async function initializeVaultBlobs() {
+  try {
+    const storedVaultBlobs = await storageGet(VAULT_BLOBS_KEY, "local");
+
+    if (storedVaultBlobs) {
+      vaultBlobs.length = 0;
+      vaultBlobs.push(...storedVaultBlobs);
+      console.log("[Background] Loaded vault blobs from storage");
+    } else {
+      console.log("[Background] No vault blobs found in storage");
+    }
+
+  } catch (error) {
+    console.error("[Background] Error initializing vault blobs:", error);
+  }
+}
 
 /**
  * Schedule automatic vault lock
@@ -32,15 +89,6 @@ function scheduleVaultLock(): void {
   console.log(`[Background] Scheduled vault lock in ${lockInterval} minutes`);
 }
 
-/**
- * Check if access token is still valid
- */
-function isAccessTokenValid(): boolean {
-  if (!accessToken || !unlockTimestamp) {
-    return false;
-  }
-  return Date.now() - unlockTimestamp < UNLOCK_DURATION;
-}
 
 /**
  * Check if vault unlock key is still valid
@@ -56,15 +104,33 @@ function isVaultUnlockValid(): boolean {
  * Lock the vault
  */
 function lockVault(): void {
-  accessToken = null;
-  refreshToken = null;
   vaultUnlockKey = null;
   unlockTimestamp = null;
+
+  storageSet(ACCESS_TOKEN_KEY, null, "session");
+  storageSet(REFRESH_TOKEN_KEY, null, "session");
+  storageSet(UNLOCK_TIMESTAMP_KEY, null, "session");
+
   chrome.alarms.clear(VAULT_LOCK_ALARM);
   console.log("[Background] Vault locked");
 
   // Notify all contexts that vault is locked
   notifyVaultLocked();
+}
+
+function unlockVault(key: CryptoKey): void {
+  vaultUnlockKey = key;
+  unlockTimestamp = Date.now();
+
+  storageSet(UNLOCK_TIMESTAMP_KEY, unlockTimestamp, "session");
+
+  // Schedule auto-lock
+  chrome.alarms.clear(VAULT_LOCK_ALARM);
+  scheduleVaultLock();
+  console.log("[Background] Vault unlocked");
+
+  // Notify all contexts that vault is unlocked
+  notifyContentVaultStatus();
 }
 
 /**
@@ -87,12 +153,23 @@ function notifyContentVaultStatus(): void {
   });
 }
 
+/**
+ * Keep the service worker alive by creating a periodic alarm
+ * The alarm triggers every 24 seconds to prevent the service worker from being terminated
+ */
+chrome.alarms.create("KEEP_ALIVE", { periodInMinutes: 0.4 }); // 24 seconds
+
 
 /**
  * Handle alarm events
  */
 chrome.alarms.onAlarm.addListener((alarm) => {
   console.log(`[Background] Alarm triggered: ${alarm.name}`);
+
+  if (alarm.name === "KEEP_ALIVE") {
+    // Keep the service worker alive by sending a no-op message to itself
+    console.log("[Background] Keep-alive alarm triggered");
+  }
 
   if (alarm.name === VAULT_LOCK_ALARM) {
     lockVault();
@@ -107,25 +184,12 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
   (async () => {
     try {
-      switch (message.type) {
-        case "GET_ACCESS_TOKEN": {
-          // Return access token if valid, otherwise try to refresh
-          const isValid = isAccessTokenValid();
-          sendResponse({
-            success: isValid ? true : false,
-            accessToken: isValid ? accessToken : null,
-          });
-          break;
-        }
+      while (!isHydrated) {
+        console.log("[Background] Waiting for service worker to hydrate...");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-        case "GET_REFRESH_TOKEN": {
-          const isValid = !!refreshToken && isAccessTokenValid();
-          sendResponse({
-            success: isValid ? true : false,
-            refreshToken: refreshToken,
-          });
-          break;
-        }
+      switch (message.type) {
 
         case "GET_VAULT_UNLOCK_KEY": {
           const isValid = isVaultUnlockValid();
@@ -144,37 +208,12 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           break;
         }
 
-        case "SET_AUTH_TOKENS": {
-          const { accessToken: newAccess, refreshToken: newRefresh } = message.payload;
-
-          if (!newAccess || !newRefresh) {
-            sendResponse({ success: false, error: "Invalid tokens" });
-            break;
-          }
-
-          if (newAccess && newRefresh) {
-            accessToken = newAccess;
-            refreshToken = newRefresh;
-          }
-
-          console.log("[Background] Auth tokens updated");
-          sendResponse({ success: true });
-          break;
-        }
-
         case "UNLOCK_VAULT": {
           const { key } = message.payload;
-          vaultUnlockKey = key;
-          unlockTimestamp = Date.now();
+          console.log("[Background] Unlocking vault with key:", key);
 
-          // Schedule auto-lock
-          scheduleVaultLock();
-
-          console.log("[Background] Vault unlocked");
+          unlockVault(key);
           sendResponse({ success: true });
-
-          // notify context
-          notifyContentVaultStatus();
           break;
         }
 

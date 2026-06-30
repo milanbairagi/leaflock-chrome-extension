@@ -6,13 +6,11 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { storageGet, storageRemove, storageSet } from "../utils/storage";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, UNLOCK_DURATION } from "../constants";
 import { type AuthTokens } from "../types";
 
 type NullableString = string | null;
-interface BackgroundMsgResType {
-  success: boolean;
-  [key: string]: unknown;
-}
 
 // Module-level variable for axios interceptor
 let currentAccessToken: NullableString = null;
@@ -72,33 +70,47 @@ export const AuthCredentialProvider = ({
     };
   }, [accessToken]);
 
-  // Load initial state from service worker
+  // Load initial state from session storage and SW
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
         // Get tokens from service worker
-        const [accessResponse, refreshResponse, vaultResponse] = await Promise.all([
-          sendMessageToBackground<{ accessToken: string | null }>({
-            type: "GET_ACCESS_TOKEN",
-          }),
-          sendMessageToBackground<{ refreshToken: string | null }>({
-            type: "GET_REFRESH_TOKEN",
-          }),
-          sendMessageToBackground<{ vaultUnlockKey: CryptoKey | null }>({
-            type: "GET_VAULT_UNLOCK_KEY",
-          }),
-        ]);
+        const [access, refresh, vaultResponse, unlockTimestamp] =
+          await Promise.all([
+            storageGet(ACCESS_TOKEN_KEY, "session"),
+            storageGet(REFRESH_TOKEN_KEY, "session"),
+            sendMessageToBackground<{
+              success: boolean;
+              vaultUnlockKey: CryptoKey | null;
+            }>({
+              type: "GET_VAULT_UNLOCK_KEY",
+            }),
+            storageGet(UNLOCK_TIMESTAMP_KEY, "session"),
+          ]);
 
         if (!isMounted) return;
+        
+        if (unlockTimestamp) {
+          const currentTime = Date.now();
+          if (currentTime - unlockTimestamp > UNLOCK_DURATION) {
+            // Vault unlock key has expired, clear it
+            setVaultUnlockKey(null);
+            console.log("[AuthCredential] Vault unlock key expired, clearing it");
+            await sendMessageToBackground({
+              type: "LOCK_VAULT",
+            });
+          } else {
+            setAccessToken(access);
+            setRefreshToken(refresh);
+            setVaultUnlockKey(vaultResponse.vaultUnlockKey);
+          }
+        }
 
-        setAccessToken(accessResponse.accessToken);
-        setRefreshToken(refreshResponse.refreshToken);
-        setVaultUnlockKey(vaultResponse.vaultUnlockKey);
-        setIsHydrated(true);
       } catch (error) {
         console.error("[AuthCredential] Failed to hydrate from service worker:", error);
+      } finally {
         if (isMounted) {
           setIsHydrated(true);
         }
@@ -126,22 +138,20 @@ export const AuthCredentialProvider = ({
   }, []);
 
   const setAuthTokens = useCallback(async (tokens: AuthTokens) => {
-    const response: BackgroundMsgResType = await sendMessageToBackground({
-      type: "SET_AUTH_TOKENS",
-      payload: {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      },
-    });
-    if (response.success) {
-      setAccessToken(tokens.accessToken);
-      setRefreshToken(tokens.refreshToken);
-    } else {
-      throw new Error("Failed to set auth tokens in background");
-    }
+    console.log("[AuthCredential] Setting auth tokens:", tokens);
+    storageSet(ACCESS_TOKEN_KEY, tokens.accessToken, "session");
+    storageSet(REFRESH_TOKEN_KEY, tokens.refreshToken, "session");
+    setAccessToken(tokens.accessToken);
+    setRefreshToken(tokens.refreshToken);
+
+    // Testing
+    const access = await storageGet(ACCESS_TOKEN_KEY, "session");
+    const refresh = await storageGet(REFRESH_TOKEN_KEY, "session");
+    console.log("[AuthCredential] Tokens after setting:", { access, refresh });
   }, []);
 
   const unlockVault = useCallback(async (vaultUnlockKey: CryptoKey) => {
+    console.log("[AuthCredential] Unlocking vault with key:", vaultUnlockKey);
     setVaultUnlockKey(vaultUnlockKey);
     await sendMessageToBackground({
       type: "UNLOCK_VAULT",
@@ -150,7 +160,11 @@ export const AuthCredentialProvider = ({
   }, []);
 
   const lockVault = useCallback(async () => {
+    setAccessToken(null);
+    setRefreshToken(null);
     setVaultUnlockKey(null);
+    storageRemove(ACCESS_TOKEN_KEY, "session");
+    storageRemove(REFRESH_TOKEN_KEY, "session");
     await sendMessageToBackground({
       type: "LOCK_VAULT",
     });

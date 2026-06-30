@@ -28,7 +28,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { accessToken, setAuthTokens, unlockVault } =
+  const { isHydrated, accessToken, setAuthTokens, unlockVault } =
     useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
@@ -87,6 +87,10 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   if (user) {
     goToHome();
     return null;
+  }
+
+  if (!isHydrated) {
+    return <div>Loading...</div>;
   }
   
   return (
