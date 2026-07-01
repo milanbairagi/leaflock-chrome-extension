@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { storageGet, storageRemove, storageSet } from "../utils/storage";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, UNLOCK_DURATION } from "../constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "../constants";
 import { type AuthTokens } from "../types";
 
 type NullableString = string | null;
@@ -43,8 +43,8 @@ type AuthCredentialContextValue = {
 
   setAuthTokens: (tokens: AuthTokens) => Promise<void>;
 
-  vaultUnlockKey: CryptoKey | null;
-  unlockVault: (vaultUnlockKey: CryptoKey) => Promise<void>;
+  hasUnlockKey: boolean;
+  unlockVault: (password: string, salt: string) => Promise<void>;
   lockVault: () => Promise<void>;
 };
 
@@ -60,7 +60,7 @@ export const AuthCredentialProvider = ({
   const [isHydrated, setIsHydrated] = useState(false);
   const [accessToken, setAccessToken] = useState<NullableString>(null);
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
-  const [vaultUnlockKey, setVaultUnlockKey] = useState<CryptoKey | null>(null);
+  const [hasUnlockKey, setHasUnlockKey] = useState<boolean>(false);
 
   // Sync currentAccessToken for axios interceptor
   useEffect(() => {
@@ -77,36 +77,20 @@ export const AuthCredentialProvider = ({
     (async () => {
       try {
         // Get tokens from service worker
-        const [access, refresh, vaultResponse, unlockTimestamp] =
+        const [access, refresh, hasKeyResponse] =
           await Promise.all([
             storageGet(ACCESS_TOKEN_KEY, "session"),
             storageGet(REFRESH_TOKEN_KEY, "session"),
-            sendMessageToBackground<{
-              success: boolean;
-              vaultUnlockKey: CryptoKey | null;
-            }>({
-              type: "GET_VAULT_UNLOCK_KEY",
+            sendMessageToBackground<{ success: boolean }>({
+              type: "HAS_UNLOCK_KEY",
             }),
-            storageGet(UNLOCK_TIMESTAMP_KEY, "session"),
           ]);
 
         if (!isMounted) return;
-        
-        if (unlockTimestamp) {
-          const currentTime = Date.now();
-          if (currentTime - unlockTimestamp > UNLOCK_DURATION) {
-            // Vault unlock key has expired, clear it
-            setVaultUnlockKey(null);
-            console.log("[AuthCredential] Vault unlock key expired, clearing it");
-            await sendMessageToBackground({
-              type: "LOCK_VAULT",
-            });
-          } else {
-            setAccessToken(access);
-            setRefreshToken(refresh);
-            setVaultUnlockKey(vaultResponse.vaultUnlockKey);
-          }
-        }
+
+        setHasUnlockKey(hasKeyResponse.success);
+        setAccessToken(access);
+        setRefreshToken(refresh);
 
       } catch (error) {
         console.error("[AuthCredential] Failed to hydrate from service worker:", error);
@@ -126,7 +110,7 @@ export const AuthCredentialProvider = ({
   useEffect(() => {
     const handleMessage = (message: { type: string }) => {
       if (message.type === "VAULT_LOCKED") {
-        setVaultUnlockKey(null);
+        setHasUnlockKey(false);
       }
     };
 
@@ -150,19 +134,19 @@ export const AuthCredentialProvider = ({
     console.log("[AuthCredential] Tokens after setting:", { access, refresh });
   }, []);
 
-  const unlockVault = useCallback(async (vaultUnlockKey: CryptoKey) => {
-    console.log("[AuthCredential] Unlocking vault with key:", vaultUnlockKey);
-    setVaultUnlockKey(vaultUnlockKey);
+  const unlockVault = useCallback(async (password: string, salt: string) => {
+    console.log("[AuthCredential] Unlocking vault with:", password, salt);
+    setHasUnlockKey(true);
     await sendMessageToBackground({
       type: "UNLOCK_VAULT",
-      payload: { key: vaultUnlockKey },
+      payload: { password, salt },
     });
   }, []);
 
   const lockVault = useCallback(async () => {
     setAccessToken(null);
     setRefreshToken(null);
-    setVaultUnlockKey(null);
+    setHasUnlockKey(false);
     storageRemove(ACCESS_TOKEN_KEY, "session");
     storageRemove(REFRESH_TOKEN_KEY, "session");
     await sendMessageToBackground({
@@ -176,7 +160,7 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      vaultUnlockKey,
+      hasUnlockKey,
       unlockVault,
       lockVault,
     }),
@@ -185,7 +169,7 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      vaultUnlockKey,
+      hasUnlockKey,
       unlockVault,
       lockVault,
     ]
