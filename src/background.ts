@@ -4,6 +4,8 @@
  */
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
+import { deriveKey } from "./utils/cryptography";
+import { decryptVault } from "./hooks/useCryptoVault";
 import { type VaultItem } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_BLOBS_KEY, UNLOCK_DURATION } from "./constants";
@@ -97,6 +99,10 @@ function isVaultUnlockValid(): boolean {
   if (!vaultUnlockKey || !unlockTimestamp) {
     return false;
   }
+  if (!(vaultUnlockKey instanceof CryptoKey)) {
+    console.warn("[Background] vaultUnlockKey is not a valid CryptoKey");
+    return false;
+  }
   return Date.now() - unlockTimestamp < UNLOCK_DURATION;
 }
 
@@ -133,6 +139,13 @@ function unlockVault(key: CryptoKey): void {
   notifyContentVaultStatus();
 }
 
+async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
+  vaultBlobs.length = 0;
+  vaultBlobs.push(...vaults);
+  await storageSet(VAULT_BLOBS_KEY, vaultBlobs, "local");
+  console.log("[Background] Stored vault blobs in memory and local storage");
+}
+
 /**
  * Notify all contexts that vault is locked
  */
@@ -151,6 +164,13 @@ function notifyContentVaultStatus(): void {
     type: "VAULT_STATUS",
     payload: (vaultUnlockKey) ? "unlock" : "lock"
   });
+}
+
+async function decryptVaultItems(encryptedItems: VaultItem[], key: CryptoKey): Promise<VaultItem[]> {
+  const vaults = await Promise.all(
+    encryptedItems.map((vault) => decryptVault(vault, key))
+  );
+  return vaults;
 }
 
 /**
@@ -191,17 +211,11 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
       switch (message.type) {
 
-        case "GET_VAULT_UNLOCK_KEY": {
+        case "HAS_UNLOCK_KEY": {
           const isValid = isVaultUnlockValid();
           sendResponse({
-            success: isValid ? true : false,
-            vaultUnlockKey: isValid ? vaultUnlockKey : null,
+            success: isValid,
           });
-
-          // If expired, clear it
-          if (!isValid && vaultUnlockKey) {
-            lockVault();
-          }
 
           // notify context
           notifyContentVaultStatus();
@@ -209,10 +223,11 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "UNLOCK_VAULT": {
-          const { key } = message.payload;
-          console.log("[Background] Unlocking vault with key:", key);
+          const [password, salt] = message.payload;
 
-          unlockVault(key);
+          // Implementation for unlocking vault with password and salt
+          const vaultUnlockKey = await deriveKey(password, salt);
+          unlockVault(vaultUnlockKey);
           sendResponse({ success: true });
           break;
         }
@@ -233,10 +248,25 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             sendResponse({ success: false, error: "Invalid items format" });
             return;
           }
-          vaultBlobs.length = 0;
-          vaultBlobs.push(...items);
-          console.log("[Background] Stored vault items in memory");
+          await storeVaultBlobs(items);
+
           sendResponse({ success: true });
+          break;
+        }
+
+        case "GET_DECRYPTED_VAULT_ITEMS": {
+          if (!vaultUnlockKey) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          
+          if (!Array.isArray(vaultBlobs) || !vaultBlobs.every((item) => typeof item === "object" && item !== null)) {
+            sendResponse({ success: false, error: "Invalid vaults format" });
+            break;
+          }
+
+          const decryptedVaults = await decryptVaultItems(vaultBlobs, vaultUnlockKey);
+          sendResponse({ success: true, vaults: decryptedVaults });
           break;
         }
 
