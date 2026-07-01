@@ -8,7 +8,6 @@ import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 import { type VaultItem } from "../types";
-import { decryptVault } from "../hooks/useCryptoVault";
 
 interface props {
   goToLogin: () => void;
@@ -29,21 +28,16 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     isLoading: true,
     handleLogout: null,
   };
-  const { accessToken, refreshToken, vaultUnlockKey, setAuthTokens } = useAuthCredential();
+  const { isHydrated, accessToken, refreshToken, setAuthTokens, hasUnlockKey } = useAuthCredential();
 
-  const needsVaultUnlock = !vaultUnlockKey;
-  const needsLogin = (!isLoading && !user) || !accessToken || !refreshToken;
-
-  useEffect(() => {
-    if (needsVaultUnlock) goToLogin();
-  }, [needsVaultUnlock]);
+  const needsLogin = (!isLoading && !user) || !accessToken || !refreshToken || !hasUnlockKey;
 
   useEffect(() => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
   useEffect(() => {
-    fetchPasswordLists();
+    fetchVaultItems();
   }, []);
 
   useEffect(() => {
@@ -56,23 +50,48 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     });
   }, [vaultItems]);
 
-  const fetchPasswordLists = useCallback(async () => {
-    if (!vaultUnlockKey) return;
+  const fetchVaultItems = useCallback(async () => {
     const apiInstance = api(accessToken);
+    console.log("[HomePage] Fetching vault items with access token:", accessToken);
 
     try {
       const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
         "vaults/blobs/",
       );
+      console.log("[HomePage] Fetched vault items:", res.data);
       const vaults = res.data;
-      const decryptedVaults = await Promise.all(
-        vaults.map((vault) => decryptVault(vault, vaultUnlockKey))
-      );
-      setVaultItems(decryptedVaults);
+
+      const storeRes = await sendServiceMessage({
+        type: "STORE_VAULT_ITEMS",
+        payload: {
+          items: vaults,
+        }
+      });
+
+      if (!storeRes.success) {
+        console.error("[HomePage] Failed to store vault items in background:", storeRes.error);
+        setErrorMessage("Failed to store vault items in background.");
+        return;
+      }
+
+      const decryptedVaults = await sendServiceMessage({
+        type: "GET_DECRYPTED_VAULT_ITEMS",
+      });
+      
+      if (!decryptedVaults.success) {
+        console.error("[HomePage] Failed to decrypt vault items:", decryptedVaults.error);
+        setErrorMessage("Failed to decrypt vault items.");
+        return;
+      }
+
+      console.log("[HomePage] Decrypted vault items:", decryptedVaults.vaults);
+      setVaultItems(decryptedVaults.vaults as VaultItem[]);
+
     } catch (error) {
-      setErrorMessage("Failed to fetch password lists.");
+      console.error("[HomePage] Error fetching vault items:", error);
+      setErrorMessage("Failed to fetch vault items.");
     }
-  }, [accessToken, refreshToken, setAuthTokens, vaultUnlockKey]);
+  }, [accessToken, refreshToken, setAuthTokens, hasUnlockKey]);
 
   const handleBackToList = () => {
     setPageState("list");
@@ -86,7 +105,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 
   const handleAddAndGoToDetail = (id: number) => {
     // Refresh the list then go to detail view
-    fetchPasswordLists();
+    fetchVaultItems();
     setSelectedPasswordId(id);
     setPageState("detail");
   };
@@ -96,10 +115,10 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     setSelectedPasswordId(id);
   };
 
-  if (needsLogin || needsVaultUnlock) return null;
-  if (isLoading) {
+  if (!isHydrated || isLoading) {
     return <div>Loading...</div>;
   }
+  if (needsLogin) return null;
 
   return (
     <div className="p-5 rounded-md">

@@ -4,7 +4,7 @@ import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
-import { authHash, deriveKey } from "../utils/cryptography";
+import { authHash } from "../utils/cryptography";
 import type { AuthTokens } from "../types";
 import logo from "../assets/images/Logo.svg";
 import TextInput from "../components/inputs/TextInput";
@@ -65,10 +65,9 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
       // Get the salt from the server and use it to derive the vault unlock key
       const responseSalt = await freshApi.get("/accounts/salt/");
       const salt = responseSalt.data.salt;
-      const vaultUnlockKey = await deriveKey(password, salt);
 
       // Unlock the vault with the derived key
-      await unlockVault(vaultUnlockKey);
+      await unlockVault(password, salt);
 
       goToHome();
     } catch (error) {
