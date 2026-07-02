@@ -136,22 +136,22 @@ export const AuthCredentialProvider = ({
 
   const unlockVault = useCallback(async (password: string, salt: string) => {
     console.log("[AuthCredential] Unlocking vault with:", password, salt);
-    setHasUnlockKey(true);
     await sendMessageToBackground({
       type: "UNLOCK_VAULT",
       payload: { password, salt },
     });
+    setHasUnlockKey(true);
   }, []);
 
   const lockVault = useCallback(async () => {
+    await sendMessageToBackground({
+      type: "LOCK_VAULT",
+    });
     setAccessToken(null);
     setRefreshToken(null);
     setHasUnlockKey(false);
     storageRemove(ACCESS_TOKEN_KEY, "session");
     storageRemove(REFRESH_TOKEN_KEY, "session");
-    await sendMessageToBackground({
-      type: "LOCK_VAULT",
-    });
   }, []);
 
   const value = useMemo<AuthCredentialContextValue>(

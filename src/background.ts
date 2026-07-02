@@ -5,7 +5,7 @@
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
 import { deriveKey } from "./utils/cryptography";
-import { decryptVault } from "./hooks/useCryptoVault";
+import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
 import { type VaultItem } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_BLOBS_KEY, UNLOCK_DURATION } from "./constants";
@@ -223,7 +223,8 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "UNLOCK_VAULT": {
-          const [password, salt] = message.payload;
+          const { password, salt } = message.payload;
+          // console.log("[Background] Received unlock request with password and salt: ", password, salt);
 
           // Implementation for unlocking vault with password and salt
           const vaultUnlockKey = await deriveKey(password, salt);
@@ -267,6 +268,21 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
           const decryptedVaults = await decryptVaultItems(vaultBlobs, vaultUnlockKey);
           sendResponse({ success: true, vaults: decryptedVaults });
+          break;
+        }
+
+        case "ENCRYPT_VAULT_ITEM": {
+          if (!vaultUnlockKey) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          const { vault } = message.payload;
+          if (typeof vault !== "object" || vault === null) {
+            sendResponse({ success: false, error: "Invalid vault format" });
+            break;
+          }
+          const encryptedVaultItem = await encryptVault(vault, vaultUnlockKey);
+          sendResponse({ success: true, blob: encryptedVaultItem });
           break;
         }
 

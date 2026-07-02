@@ -13,6 +13,8 @@ interface props {
   goToLogin: () => void;
 }
 
+const vaultFetchInFlight = new Map<string, Promise<void>>();
+
 
 const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
@@ -37,10 +39,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   }, [needsLogin, goToLogin]);
 
   useEffect(() => {
-    fetchVaultItems();
-  }, []);
-
-  useEffect(() => {
     if (vaultItems.length === 0) return;
     sendServiceMessage({
       type: "STORE_VAULT_ITEMS",
@@ -51,47 +49,73 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   }, [vaultItems]);
 
   const fetchVaultItems = useCallback(async () => {
+    if (!accessToken) return;
+
+    const inFlightRequest = vaultFetchInFlight.get(accessToken);
+    if (inFlightRequest) {
+      await inFlightRequest;
+      return;
+    }
+
     const apiInstance = api(accessToken);
     console.log("[HomePage] Fetching vault items with access token:", accessToken);
 
-    try {
-      const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
-        "vaults/blobs/",
-      );
-      console.log("[HomePage] Fetched vault items:", res.data);
-      const vaults = res.data;
+    const request = (async () => {
+      try {
+        const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
+          "vaults/blobs/",
+        );
+        console.log("[HomePage] Fetched vault items:", res.data);
+        const vaults = res.data;
 
-      const storeRes = await sendServiceMessage({
-        type: "STORE_VAULT_ITEMS",
-        payload: {
-          items: vaults,
+        const storeRes = await sendServiceMessage({
+          type: "STORE_VAULT_ITEMS",
+          payload: {
+            items: vaults,
+          }
+        });
+
+        if (!storeRes.success) {
+          console.error("[HomePage] Failed to store vault items in background:", storeRes.error);
+          setErrorMessage("Failed to store vault items in background.");
+          return;
         }
-      });
 
-      if (!storeRes.success) {
-        console.error("[HomePage] Failed to store vault items in background:", storeRes.error);
-        setErrorMessage("Failed to store vault items in background.");
-        return;
-      }
-
-      const decryptedVaults = await sendServiceMessage({
-        type: "GET_DECRYPTED_VAULT_ITEMS",
-      });
+        const decryptedVaults = await sendServiceMessage({
+          type: "GET_DECRYPTED_VAULT_ITEMS",
+        });
       
-      if (!decryptedVaults.success) {
-        console.error("[HomePage] Failed to decrypt vault items:", decryptedVaults.error);
-        setErrorMessage("Failed to decrypt vault items.");
-        return;
+        if (!decryptedVaults.success) {
+          console.error("[HomePage] Failed to decrypt vault items:", decryptedVaults.error);
+          setErrorMessage("Failed to decrypt vault items.");
+          return;
+        }
+
+        console.log("[HomePage] Decrypted vault items:", decryptedVaults.vaults);
+        setVaultItems(decryptedVaults.vaults as VaultItem[]);
+
+      } catch (error) {
+        console.error("[HomePage] Error fetching vault items:", error);
+        setErrorMessage("Failed to fetch vault items.");
       }
+    })();
 
-      console.log("[HomePage] Decrypted vault items:", decryptedVaults.vaults);
-      setVaultItems(decryptedVaults.vaults as VaultItem[]);
+    vaultFetchInFlight.set(accessToken, request);
 
-    } catch (error) {
-      console.error("[HomePage] Error fetching vault items:", error);
-      setErrorMessage("Failed to fetch vault items.");
+    try {
+      await request;
+    } finally {
+      if (vaultFetchInFlight.get(accessToken) === request) {
+        vaultFetchInFlight.delete(accessToken);
+      }
     }
   }, [accessToken, refreshToken, setAuthTokens, hasUnlockKey]);
+
+  useEffect(() => {
+    if (!isHydrated || isLoading || needsLogin) return;
+
+    void fetchVaultItems();
+  }, [fetchVaultItems, isHydrated, isLoading, needsLogin]);
 
   const handleBackToList = () => {
     setPageState("list");

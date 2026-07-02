@@ -5,7 +5,7 @@ import { generateIV } from "../utils/cryptography";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
 import type { VaultItem, CreateVaultItemPayload } from "../types";
-import { encryptVault } from "../hooks/useCryptoVault";
+import { sendServiceMessage } from "../hooks/useServiceMessage";
 
 interface props {
   handleAddAndGoToDetail?: (newItemId: number) => void;
@@ -23,21 +23,37 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { accessToken, refreshToken, setAuthTokens, vaultUnlockKey } = useAuthCredential();
+  const { accessToken, refreshToken, setAuthTokens, hasUnlockKey } = useAuthCredential();
 
   const fetchNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!accessToken || !refreshToken || !hasUnlockKey) {
+      setErrorMessage("Missing authentication or vault unlock key.");
+      return;
+    }
 
     setLoading(true);
     const apiInstance = api(accessToken);
     try {
-      if (!vaultUnlockKey) {
+      if (!hasUnlockKey) {
         throw new Error("Vault unlock key is missing.");
       }
 
       const iv = generateIV();
       const vaultItemWithIV = { ...vaultItem, iv };
-      const encryptedVaultItem = await encryptVault(vaultItemWithIV, vaultUnlockKey);
+      const swResponse = await sendServiceMessage({
+        type: "ENCRYPT_VAULT_ITEM",
+        payload: { 
+          vault: vaultItemWithIV
+        },
+      });
+      
+      if (!swResponse.success) {
+        throw new Error(swResponse.error || "Failed to encrypt vault item.");
+      }
+
+      const encryptedVaultItem = swResponse.blob as CreateVaultItemPayload;
+      
 
       const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", encryptedVaultItem);
       console.log("New vault item created:", res.data);
@@ -50,7 +66,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, refreshToken, setAuthTokens, vaultItem, vaultUnlockKey]);
+  }, [accessToken, refreshToken, setAuthTokens, vaultItem, hasUnlockKey]);
 
   return (
     <div>
