@@ -38,16 +38,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
-  useEffect(() => {
-    if (vaultItems.length === 0) return;
-    sendServiceMessage({
-      type: "STORE_VAULT_ITEMS",
-      payload: {
-        items: vaultItems,
-      },
-    });
-  }, [vaultItems]);
-
   const fetchVaultItems = useCallback(async () => {
     if (!accessToken) return;
 
