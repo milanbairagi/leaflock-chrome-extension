@@ -1,11 +1,7 @@
 import { useState } from "react";
-import type { AxiosResponse } from "axios";
-import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
-import { authHash } from "../utils/cryptography";
-import type { AuthTokens } from "../types";
 import logo from "../assets/images/Logo.svg";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
@@ -28,46 +24,18 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { isHydrated, accessToken, setAuthTokens, unlockVault } =
-    useAuthCredential();
+  const { isHydrated, unlockVault, hasUnlockKey } = useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
     isLoading: true,
   };
-
-  interface LoginResponseData {
-    access: string;
-    refresh: string;
-  }
-  const apiInstance = api(accessToken);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearError();
     try {
       setSubmitting(true);
-      const hashedPassword = await authHash(password, email);
-      const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
-        "/accounts/token/",
-        {
-          email: email,
-          password: hashedPassword,
-        },
-      );
-      const token: AuthTokens = {
-        accessToken: response.data.access,
-        refreshToken: response.data.refresh,
-      };
-      await setAuthTokens(token);
-      
-      const freshApi = api(token.accessToken);
-
-      // Get the salt from the server and use it to derive the vault unlock key
-      const responseSalt = await freshApi.get("/accounts/salt/");
-      const salt = responseSalt.data.salt;
-
-      // Unlock the vault with the derived key
-      await unlockVault(password, salt);
+      await unlockVault(password, email);
 
       goToHome();
     } catch (error) {
@@ -83,7 +51,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
   if (isLoading) {
     return <div>Loading...</div>;
   }
-  if (user) {
+  if (hasUnlockKey && user) {
     goToHome();
     return null;
   }

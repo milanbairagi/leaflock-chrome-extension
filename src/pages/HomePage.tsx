@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { type AxiosResponse } from "axios";
+import { useEffect, useState } from "react";
+// import { type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
-import api from "../axios";
+// import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
@@ -13,7 +13,7 @@ interface props {
   goToLogin: () => void;
 }
 
-const vaultFetchInFlight = new Map<string, Promise<void>>();
+// const vaultFetchInFlight = new Map<string, Promise<void>>();
 
 
 const HomePage: React.FC<props> = ({ goToLogin }: props) => {
@@ -30,15 +30,16 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     isLoading: true,
     handleLogout: null,
   };
-  const { isHydrated, accessToken, refreshToken, setAuthTokens, hasUnlockKey } = useAuthCredential();
+  const { isHydrated, hasUnlockKey } = useAuthCredential();
 
-  const needsLogin = (!isLoading && !user) || !accessToken || !refreshToken || !hasUnlockKey;
+  const needsLogin = (!isLoading && !user) || !hasUnlockKey;
 
   useEffect(() => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
-  const fetchVaultItems = useCallback(async () => {
+  /*
+  const fetchVaultItemsOnline = useCallback(async () => {
     if (!accessToken) return;
 
     const inFlightRequest = vaultFetchInFlight.get(accessToken);
@@ -100,12 +101,28 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       }
     }
   }, [accessToken, refreshToken, setAuthTokens, hasUnlockKey]);
+  */
+
 
   useEffect(() => {
     if (!isHydrated || isLoading || needsLogin) return;
 
-    void fetchVaultItems();
-  }, [fetchVaultItems, isHydrated, isLoading, needsLogin]);
+    (async () => {
+      const response = await sendServiceMessage({
+        type: "GET_DECRYPTED_VAULT_ITEMS",
+      });
+
+      if (!response.success) {
+        console.error("[HomePage] Failed to get decrypted vault items:", response.error);
+        setErrorMessage("Failed to get decrypted vault items.");
+        return;
+      }
+
+      console.log("[HomePage] Decrypted vault items:", response.vaults);
+      setVaultItems(response.vaults as VaultItem[]);
+    })();
+    
+  }, [isHydrated, isLoading, needsLogin]);
 
   const handleBackToList = () => {
     setPageState("list");
@@ -119,7 +136,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 
   const handleAddAndGoToDetail = (id: number) => {
     // Refresh the list then go to detail view
-    fetchVaultItems();
+    // fetchVaultItems();
     setSelectedPasswordId(id);
     setPageState("detail");
   };

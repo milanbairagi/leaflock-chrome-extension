@@ -6,16 +6,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import api from "../axios";
 import { storageGet, storageRemove, storageSet } from "../utils/storage";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "../constants";
+import { authHash } from "../utils/cryptography";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, PASSWORD_VERIFIER_KEY, SALT_KEY } from "../constants";
 import { type AuthTokens } from "../types";
 
 type NullableString = string | null;
 
-// Module-level variable for axios interceptor
-let currentAccessToken: NullableString = null;
-
-export const getAccessToken = (): NullableString => currentAccessToken;
 
 /**
  * Send message to service worker and wait for response
@@ -61,14 +59,6 @@ export const AuthCredentialProvider = ({
   const [accessToken, setAccessToken] = useState<NullableString>(null);
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
   const [hasUnlockKey, setHasUnlockKey] = useState<boolean>(false);
-
-  // Sync currentAccessToken for axios interceptor
-  useEffect(() => {
-    currentAccessToken = accessToken;
-    return () => {
-      currentAccessToken = null;
-    };
-  }, [accessToken]);
 
   // Load initial state from session storage and SW
   useEffect(() => {
@@ -134,13 +124,86 @@ export const AuthCredentialProvider = ({
     console.log("[AuthCredential] Tokens after setting:", { access, refresh });
   }, []);
 
-  const unlockVault = useCallback(async (password: string, salt: string) => {
-    console.log("[AuthCredential] Unlocking vault with:", password, salt);
-    await sendMessageToBackground({
-      type: "UNLOCK_VAULT",
-      payload: { password, salt },
-    });
-    setHasUnlockKey(true);
+  const unlockVault = useCallback(async (password: string, email: string) => {
+    console.log("[AuthCredential] Unlocking vault with:", password, email);
+    const hashPassword = await authHash(password, email);
+    const apiInstance = api(null);
+
+    let isOnline = navigator.onLine;
+
+    // Check if offline unlock is possible
+    let isOfflinePossible = false;
+    const storedPasswordVerifier = await storageGet(PASSWORD_VERIFIER_KEY, "local");
+    const storedSalt = await storageGet(SALT_KEY, "local");
+    console.log("[AuthCredentail] salt, password verifier: ", storedSalt, storedPasswordVerifier);
+    if (storedPasswordVerifier && storedSalt) {
+      isOfflinePossible = true;
+    }
+
+    let onlineUnlockSuccess = false;
+    async function onlineUnlock() {
+      if (!isOnline) {
+        throw new Error("Cannot perform online unlock while offline.");
+      }
+      const response = await apiInstance.post("/accounts/token/", {
+        email,
+        password: hashPassword,
+      });
+      if (response.status !== 200) {
+        throw new Error(`Failed to unlock vault online: ${response.status}`);
+      }
+
+      // Update tokens in session storage and state
+      const token: AuthTokens = {
+        accessToken: response.data.access,
+        refreshToken: response.data.refresh,
+      };
+      await setAuthTokens(token);
+
+      // Get the salt from the server and use it to derive the vault unlock key
+      const freshApi = api(token.accessToken);
+      const responseSalt = await freshApi.get("/accounts/salt/");
+      const salt = responseSalt.data.salt;
+
+      // Store the password verifier and salt in local storage for offline unlock
+      const passwordVerifier = await authHash(hashPassword, salt);
+      await storageSet(PASSWORD_VERIFIER_KEY, passwordVerifier, "local");
+      await storageSet(SALT_KEY, salt, "local");
+
+      // Unlock the vault with the derived key
+      await sendMessageToBackground({
+        type: "UNLOCK_VAULT",
+        payload: { password, salt },
+      });
+      setHasUnlockKey(true);
+      onlineUnlockSuccess = true;
+    }
+
+    async function offlineUnlock() {
+      if (!isOfflinePossible) {
+        throw new Error("Cannot perform offline unlock without password verifier and salt.");
+      }
+      if (await authHash(hashPassword, storedSalt) !== storedPasswordVerifier) {
+        throw new Error("Password does not match verifier.");
+      }
+      // Unlock the vault with the stored salt
+      await sendMessageToBackground({
+        type: "UNLOCK_VAULT",
+        payload: { password, salt: storedSalt },
+      });
+      setHasUnlockKey(true);
+    }
+
+    try {
+      console.log("[AuthCredential] Attempting to unlock vault. Online:", isOnline, "Offline possible:", isOfflinePossible);
+      await onlineUnlock();
+    } catch (error) {
+      if (isOfflinePossible && !onlineUnlockSuccess) {
+        console.log("[AuthCredential] Online unlock failed or not possible. Attempting offline unlock.");
+        await offlineUnlock();
+      }
+    }
+
   }, []);
 
   const lockVault = useCallback(async () => {
