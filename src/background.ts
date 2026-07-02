@@ -9,10 +9,12 @@ import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
 import { type VaultItem } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_BLOBS_KEY, UNLOCK_DURATION } from "./constants";
+import api from "./axios";
 
 let isHydrated = false; // Indicates if the service worker has loaded initial state from storage
 
 // In-memory token storage (persists while service worker is active)
+let accessToken: string | null = null;
 let vaultUnlockKey: CryptoKey | null = null;
 let unlockTimestamp: number | null = null;
 
@@ -40,6 +42,9 @@ async function initialize() {
   try {
     isHydrated = false;
 
+    // Load access token from session storage
+    accessToken = await storageGet(ACCESS_TOKEN_KEY, "session");
+
     // Load unlock timestamp from storage
     const storedUnlockTimestamp = await storageGet(UNLOCK_TIMESTAMP_KEY, "session");
     unlockTimestamp = storedUnlockTimestamp || null;
@@ -54,7 +59,7 @@ async function initialize() {
       console.log("[Background] Vault is locked on startup");
     }
 
-    initializeVaultBlobs();
+    await initializeVaultBlobs();
 
   } catch (error) {
     console.error("[Background] Error initializing service worker:", error);
@@ -64,20 +69,49 @@ async function initialize() {
 }
 
 async function initializeVaultBlobs() {
-  try {
-    const storedVaultBlobs = await storageGet(VAULT_BLOBS_KEY, "local");
+  if (!vaultUnlockKey) {
+    console.log("[Background] Vault is locked, skipping vault blobs initialization");
+    return;
+  }
+  const isOnline = navigator.onLine;
+  const isOnlineFetchPossible = isOnline && accessToken !== null;
+  const storedVaultBlobs = await storageGet(VAULT_BLOBS_KEY, "local");
 
+  try {
+    if (isOnlineFetchPossible) {
+      console.log("[Background] Online and access token available, fetching vault blobs from API");
+      await fetchVaultBlobs();
+    }
+  } catch (error) {
+    console.warn("[Background] Failed to fetch vault blobs from API, falling back to stored blobs:", error);
+    
+    // If online fetch fails, try offline
     if (storedVaultBlobs) {
-      vaultBlobs.length = 0;
-      vaultBlobs.push(...storedVaultBlobs);
+      await storeVaultBlobs(storedVaultBlobs as VaultItem[]);
       console.log("[Background] Loaded vault blobs from storage");
     } else {
-      console.log("[Background] No vault blobs found in storage");
+      console.warn("[Background] No vault blobs found in storage");
     }
-
-  } catch (error) {
-    console.error("[Background] Error initializing vault blobs:", error);
   }
+}
+
+async function fetchVaultBlobs() {
+  if (!accessToken) {
+    console.warn("[Background] Cannot fetch vault blobs without access token");
+    throw new Error("Access token is required to fetch vault blobs");
+  }
+
+  const apiInstance = api(accessToken);
+  const res = await apiInstance.get("vaults/blobs/");
+  console.log("[Background] Fetched vault blobs from API:", res.data);
+  
+  if (res.status !== 200)
+    throw new Error(`Failed to fetch vault blobs: ${res.status}`);
+  
+  const vaults = res.data as VaultItem[];
+
+  await storeVaultBlobs(vaults);
+  console.log("[Background] Fetched and stored vault blobs from API");
 }
 
 /**
@@ -109,7 +143,7 @@ function isVaultUnlockValid(): boolean {
 /**
  * Lock the vault
  */
-function lockVault(): void {
+async function lockVault(): Promise<void> {
   vaultUnlockKey = null;
   unlockTimestamp = null;
 
@@ -121,10 +155,10 @@ function lockVault(): void {
   console.log("[Background] Vault locked");
 
   // Notify all contexts that vault is locked
-  notifyVaultLocked();
+  await notifyVaultLocked();
 }
 
-function unlockVault(key: CryptoKey): void {
+async function unlockVault(key: CryptoKey): Promise<void> {
   vaultUnlockKey = key;
   unlockTimestamp = Date.now();
 
@@ -135,8 +169,13 @@ function unlockVault(key: CryptoKey): void {
   scheduleVaultLock();
   console.log("[Background] Vault unlocked");
 
+  // Reinitialize vault blobs to ensure they are up-to-date
+  await initialize().catch((error) => {
+    console.error("[Background] Failed to reinitialize vault after unlock:", error);
+  });
+
   // Notify all contexts that vault is unlocked
-  notifyContentVaultStatus();
+  await notifyContentVaultStatus();
 }
 
 async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
@@ -149,8 +188,8 @@ async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
 /**
  * Notify all contexts that vault is locked
  */
-function notifyVaultLocked(): void {
-  chrome.runtime.sendMessage({ type: "VAULT_LOCKED" }).catch(() => {
+async function notifyVaultLocked(): Promise<void> {
+  await chrome.runtime.sendMessage({ type: "VAULT_LOCKED" }).catch(() => {
     // Ignore errors if no listeners
   });
 }
@@ -159,8 +198,8 @@ function notifyVaultLocked(): void {
  * Notify content about vault unlock changes
  * Called when vault unlock or lock
 */
-function notifyContentVaultStatus(): void {
-  sendMessageToContent({
+async function notifyContentVaultStatus(): Promise<void> {
+  await sendMessageToContent({
     type: "VAULT_STATUS",
     payload: (vaultUnlockKey) ? "unlock" : "lock"
   });
@@ -183,7 +222,7 @@ chrome.alarms.create("KEEP_ALIVE", { periodInMinutes: 0.4 }); // 24 seconds
 /**
  * Handle alarm events
  */
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   console.log(`[Background] Alarm triggered: ${alarm.name}`);
 
   if (alarm.name === "KEEP_ALIVE") {
@@ -192,7 +231,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 
   if (alarm.name === VAULT_LOCK_ALARM) {
-    lockVault();
+    await lockVault();
   }
 });
 
@@ -218,7 +257,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           });
 
           // notify context
-          notifyContentVaultStatus();
+          await notifyContentVaultStatus();
           break;
         }
 
@@ -228,17 +267,17 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
           // Implementation for unlocking vault with password and salt
           const vaultUnlockKey = await deriveKey(password, salt);
-          unlockVault(vaultUnlockKey);
+          await unlockVault(vaultUnlockKey);
           sendResponse({ success: true });
           break;
         }
 
         case "LOCK_VAULT": {
-          lockVault();
+          await lockVault();
           sendResponse({ success: true });
 
           // notify context
-          notifyContentVaultStatus();
+          await notifyContentVaultStatus();
           break;
         }
 
