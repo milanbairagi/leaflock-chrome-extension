@@ -17,23 +17,33 @@ export type CreateUserPayload = Omit<
   "id" | "created_at" | "updated_at"
 >;
 
-export type VaultItem = {
+export type Vault = {
   id: number;
+  user: number;
+  encrypted_blob: string;
+  iv: string;
+  version: number;
+  updated_at: string;
+};
+
+export type VaultItem = {
+  id: string;
   title: string;
   username: string;
   password: string;
-  iv: string;
   url: string;
+  extra_fields: ExtraFields[];
   notes: string;
   created_at: string;
   updated_at: string;
 };
 
-export type CreateVaultItemPayload = Omit<
-  VaultItem,
-  "id" | "created_at" | "updated_at"
-> & {
-  password: string;
+export type CreateVaultItemPayload = Omit<VaultItem, "id">
+
+type ExtraFields = {
+  title?: string;
+  value?: string;
+  isHidden?: boolean;
 };
 
 export type StorageArea = "local" | "session";
