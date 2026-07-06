@@ -1,7 +1,4 @@
 import { useState, useCallback } from "react";
-// import { type AxiosResponse } from "axios";
-// import api from "../axios";
-import { generateIV } from "../utils/cryptography";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
 import type { VaultItem } from "../types";
@@ -28,7 +25,7 @@ const AddNewPage = ({  }: props) => {
 
   const { accessToken, refreshToken, setAuthTokens, hasUnlockKey } = useAuthCredential();
 
-  const fetchNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const addNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!accessToken || !refreshToken || !hasUnlockKey) {
       setErrorMessage("Missing authentication or vault unlock key.");
@@ -36,36 +33,26 @@ const AddNewPage = ({  }: props) => {
     }
 
     setLoading(true);
-    // const apiInstance = api(accessToken);
     try {
       if (!hasUnlockKey) {
         throw new Error("Vault unlock key is missing.");
       }
-
-      const iv = generateIV();
-      const vaultItemWithIV = { ...vaultItem, iv };
+      
       const swResponse = await sendServiceMessage({
-        type: "ENCRYPT_VAULT_ITEM",
+        type: "ADD_NEW_VAULT_ITEM",
         payload: { 
-          vault: vaultItemWithIV
+          vaultItem,
         },
       });
       
       if (!swResponse.success) {
-        throw new Error(swResponse.error || "Failed to encrypt vault item.");
+        throw new Error(swResponse.error || "Failed to add new vault item.");
       }
-
-      // const encryptedVaultItem = swResponse.blob as CreateVaultItemPayload;
-      
-
-      // const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", encryptedVaultItem);
-      // console.log("New vault item created:", res.data);
-      // if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
 
     } catch (error) {
-      setErrorMessage("Failed to fetch new vault item.");
-      console.error("Error fetching new vault item:", error);
+      setErrorMessage("Failed to add new vault item.");
+      console.error("Error adding new vault item:", error);
     } finally {
       setLoading(false);
     }
@@ -76,7 +63,7 @@ const AddNewPage = ({  }: props) => {
       <EditableVaultItem
         vaultItem={vaultItem}
         setVaultItem={setVaultItem}
-        onSubmit={fetchNewVaultItem}
+        onSubmit={addNewVaultItem}
         isEditing={false}
         loading={loading}
         errorMessage={errorMessage}
