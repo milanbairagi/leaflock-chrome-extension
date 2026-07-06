@@ -106,6 +106,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 
   useEffect(() => {
     if (!isHydrated || isLoading || needsLogin) return;
+    if (!pageState) return;
 
     (async () => {
       const response = await sendServiceMessage({
@@ -122,7 +123,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       setVaultItems(response.vaults as VaultItem[]);
     })();
     
-  }, [isHydrated, isLoading, needsLogin]);
+  }, [isHydrated, isLoading, needsLogin, pageState]);
 
   const handleBackToList = () => {
     setPageState("list");
