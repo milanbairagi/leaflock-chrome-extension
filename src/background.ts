@@ -4,11 +4,11 @@
  */
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
-import { deriveKey, decryptData, generateIV } from "./utils/cryptography";
+import { deriveKey, decryptData, generateIV, encryptData, authHash } from "./utils/cryptography";
 // import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
 import type { VaultItem, Vault } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION } from "./constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION, USER_DATA_KEY } from "./constants";
 import api from "./axios";
 import { isAxiosError } from "axios";
 
@@ -21,6 +21,8 @@ let unlockTimestamp: number | null = null;
 
 let vault: Vault | null = null;
 const vaultItems: VaultItem[] = [];
+
+let authHashValue: string | null = null; // Store the hash of the password and email for background unlock validation
 
 // Alarm names
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
@@ -67,6 +69,28 @@ async function initialize() {
     console.error("[Background] Error initializing service worker:", error);
   } finally {
     isHydrated = true;
+  }
+}
+
+async function fetchTokens() {
+  if (accessToken) return; // Tokens already fetched
+  const user = await storageGet(USER_DATA_KEY, "local");
+  if (!user || !user.email) {
+    console.warn("[Background] No user data available for fetching tokens");
+    return;
+  }
+  const apiInstance = api(null);
+
+  try {
+    const res = await apiInstance.post("/accounts/token/", {
+      email: user.email,
+      password: authHashValue,
+    });
+    accessToken = res.data.access;
+    storageSet(ACCESS_TOKEN_KEY, accessToken, "session");
+    console.log("[Background] Fetched and stored access token");
+  } catch (error) {
+    console.warn("[Background] Error fetching tokens:", error);
   }
 }
 
@@ -124,6 +148,7 @@ async function fetchVault() {
     vault = res.data as Vault;
     storageSet(VAULT_KEY, vault, "local");
     console.log("[Background] Fetched and stored vault blobs from API");
+    console.log("[Background] Current vault:", vault);
   } catch (error) {
     if (isAxiosError(error)) {
       console.warn("[Background] Axios error fetching vault:", error.response?.status, error.response?.data);
@@ -172,10 +197,13 @@ async function decryptVaultBlobs() {
 
   const encryptedBlob = vault.encrypted_blob;
   const decryptedBlob = await decryptData(encryptedBlob, vault.iv, vaultUnlockKey);
-  const vaultItems: VaultItem[] = JSON.parse(decryptedBlob);
+  console.log("[Background] Decrypted vault blobs:", decryptedBlob);
+  const parsedVaultItems: VaultItem[] = JSON.parse(decryptedBlob);
+  console.log("[Background] Parsed decrypted vault blobs:", parsedVaultItems);
   vaultItems.length = 0;
-  vaultItems.push(...vaultItems);
+  vaultItems.push(...parsedVaultItems);
   console.log("[Background] Decrypted vault blobs and stored in memory");
+  console.log("[Background] Current vault items:", vaultItems);
 }
 
 /**
@@ -187,6 +215,63 @@ function scheduleVaultLock(): void {
     delayInMinutes: lockInterval,
   });
   console.log(`[Background] Scheduled vault lock in ${lockInterval} minutes`);
+}
+
+async function addNewVaultItem(vaultItem: VaultItem) {
+  if (!vaultUnlockKey)
+    throw new Error("Vault is locked, cannot add new vault item");
+
+  if (!vault)
+    throw new Error("Vault is not initialized, cannot add new vault item");
+
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const updatedAt = createdAt;
+
+  const newVaultItem: VaultItem = {
+    ...vaultItem,
+    id,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+  vaultItems.push(newVaultItem);
+
+  // Encrypt the updated vault items and update the vault
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
+  vault.encrypted_blob = encryptedBlob.ciphertext;
+
+  // Sync to the server
+  await syncVault();
+}
+
+async function syncVault() {
+  if (!navigator.onLine) {
+    console.log("[Background] Coundn't connect to the internet!");
+    return
+  }
+
+  if (!accessToken) {
+    console.log("[Background] No access token, trying to fetch tokens...");
+    await fetchTokens();
+    if (!accessToken) {
+      console.error("[Background] Failed to fetch access token");
+      return;
+    }
+  }
+
+  const apiInstance = api(accessToken);
+  
+  try {
+    const res = await apiInstance.put("vaults/blobs/sync/", vault);
+    if (res.status === 200) {
+      vault = res.data;
+      storageSet(VAULT_KEY, vault, "local");
+    }
+    console.log("[Background] After syncing the vault: ", vault);
+  } catch (error) {
+    console.error("[Background] Failed to sync vault:", error);
+  }
 }
 
 
@@ -282,6 +367,13 @@ async function notifyContentVaultStatus(): Promise<void> {
  */
 chrome.alarms.create("KEEP_ALIVE", { periodInMinutes: 0.4 }); // 24 seconds
 
+/**
+ * Handle periodic sync of vault items to the server
+ * This is triggered every 5 minutes to ensure vault items are synced
+ */
+chrome.alarms.create("SYNC_VAULT", { periodInMinutes: 5 });
+
+
 
 /**
  * Handle alarm events
@@ -296,6 +388,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
   if (alarm.name === VAULT_LOCK_ALARM) {
     await lockVault();
+  }
+
+  if (alarm.name === "SYNC_VAULT") {
+    await syncVault();
   }
 });
 
@@ -333,6 +429,12 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           const vaultUnlockKey = await deriveKey(password, salt);
           await unlockVault(vaultUnlockKey);
           sendResponse({ success: true });
+
+          // Store hash of password and email for future unlocks
+          const user = await storageGet(USER_DATA_KEY, "local");
+          if (user && user.email) {
+            authHashValue = await authHash(password, user.email);
+          }
           break;
         }
 
@@ -374,6 +476,25 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           break;
         }
 
+        case "ADD_NEW_VAULT_ITEM": {
+          const { vaultItem } = message.payload;
+          if (typeof vaultItem !== "object" || vaultItem === null) {
+            sendResponse({ success: false, error: "Invalid vault item format" });
+            break;
+          }
+
+          try {
+            await addNewVaultItem(vaultItem);
+            console.log("[Background] New vault item added successfully");
+            console.log("[Background] Current vault items:", vaultItems);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error("[Background] Error adding new vault item:", error);
+            sendResponse({ success: false, error: String(error) });
+          }
+          break;
+        }
+
         // case "ENCRYPT_VAULT_ITEM": {
         //   if (!vaultUnlockKey) {
         //     sendResponse({ success: false, error: "Vault is locked" });
@@ -395,6 +516,17 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           // const { url } = message.payload;
           // Implementation for filtering vault items by URL
           sendResponse({ success: true, blobs: vaultItems });
+          break;
+        }
+
+        case "SYNC_VAULT": {
+          try {
+            await syncVault();
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error("[Background] Error syncing vault:", error);
+            sendResponse({ success: false, error: String(error) });
+          }
           break;
         }
 
