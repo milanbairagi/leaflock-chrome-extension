@@ -4,7 +4,7 @@ import { type VaultItem } from "../types";
 interface Props {
   vaultItem: VaultItem;
   goBack?: () => void;
-  handleEditClick?: (id: number) => void;
+  handleEditClick?: (id: string) => void;
 };
 
 

@@ -4,12 +4,13 @@
  */
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
-import { deriveKey } from "./utils/cryptography";
-import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
-import { type VaultItem } from "./types";
+import { deriveKey, decryptData, generateIV } from "./utils/cryptography";
+// import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
+import type { VaultItem, Vault } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_BLOBS_KEY, UNLOCK_DURATION } from "./constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION } from "./constants";
 import api from "./axios";
+import { isAxiosError } from "axios";
 
 let isHydrated = false; // Indicates if the service worker has loaded initial state from storage
 
@@ -18,7 +19,8 @@ let accessToken: string | null = null;
 let vaultUnlockKey: CryptoKey | null = null;
 let unlockTimestamp: number | null = null;
 
-const vaultBlobs: VaultItem[] = [];
+let vault: Vault | null = null;
+const vaultItems: VaultItem[] = [];
 
 // Alarm names
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
@@ -59,7 +61,7 @@ async function initialize() {
       console.log("[Background] Vault is locked on startup");
     }
 
-    await initializeVaultBlobs();
+    await initializeVault();
 
   } catch (error) {
     console.error("[Background] Error initializing service worker:", error);
@@ -68,50 +70,112 @@ async function initialize() {
   }
 }
 
-async function initializeVaultBlobs() {
+async function initializeVault() {
   if (!vaultUnlockKey) {
-    console.log("[Background] Vault is locked, skipping vault blobs initialization");
+    console.log("[Background] Vault is locked, skipping vault initialization");
     return;
   }
   const isOnline = navigator.onLine;
   const isOnlineFetchPossible = isOnline && accessToken !== null;
-  const storedVaultBlobs = await storageGet(VAULT_BLOBS_KEY, "local");
+  const storedVault = await storageGet(VAULT_KEY, "local");
 
   try {
     if (isOnlineFetchPossible) {
-      console.log("[Background] Online and access token available, fetching vault blobs from API");
-      await fetchVaultBlobs();
+      console.log("[Background] Online and access token available, fetching vault from API");
+      await fetchVault();
     }
   } catch (error) {
-    console.warn("[Background] Failed to fetch vault blobs from API, falling back to stored blobs:", error);
+    console.warn("[Background] Failed to fetch vault from API, falling back to stored vault:", error);
     
     // If online fetch fails, try offline
-    if (storedVaultBlobs) {
-      await storeVaultBlobs(storedVaultBlobs as VaultItem[]);
-      console.log("[Background] Loaded vault blobs from storage");
+    if (storedVault) {
+      vault = storedVault as Vault;
+      console.log("[Background] Loaded vault from storage");
     } else {
-      console.warn("[Background] No vault blobs found in storage");
+      console.warn("[Background] No vault found in storage");
     }
+  } finally {
+    if (!vault || !vault.encrypted_blob) {
+      console.log("[Background] No vault item is added yet! escaping decryption.");
+      return;
+    }
+    decryptVaultBlobs()
+    .catch((error) => {
+      console.error("[Background] Failed to decrypt vault blobs:", error);
+    });
   }
 }
 
-async function fetchVaultBlobs() {
+/**
+ * Fetch vault blobs from the API and store them in memory & local storage
+ */
+async function fetchVault() {
   if (!accessToken) {
-    console.warn("[Background] Cannot fetch vault blobs without access token");
-    throw new Error("Access token is required to fetch vault blobs");
+    console.warn("[Background] Cannot fetch vault without access token");
+    throw new Error("Access token is required to fetch vault");
   }
 
   const apiInstance = api(accessToken);
-  const res = await apiInstance.get("vaults/blobs/");
-  console.log("[Background] Fetched vault blobs from API:", res.data);
-  
-  if (res.status !== 200)
-    throw new Error(`Failed to fetch vault blobs: ${res.status}`);
-  
-  const vaults = res.data as VaultItem[];
 
-  await storeVaultBlobs(vaults);
-  console.log("[Background] Fetched and stored vault blobs from API");
+  try {
+    const res = await apiInstance.get("vaults/blobs/");
+    console.log("[Background] Fetched vault blobs from API:", res);
+    
+    vault = res.data as Vault;
+    storageSet(VAULT_KEY, vault, "local");
+    console.log("[Background] Fetched and stored vault blobs from API");
+  } catch (error) {
+    if (isAxiosError(error)) {
+      console.warn("[Background] Axios error fetching vault:", error.response?.status, error.response?.data);
+
+      if (error.response?.status === 400) {
+        // User's hasn't created a vault yet, create a new one
+        console.log("[Background] No vault found, creating a new vault");
+        await createNewVault();
+        return;
+      }
+      throw new Error(`Failed to fetch vault blobs: ${error.response?.status} - ${error.response?.data?.detail}`);
+    }
+  }
+
+  
+  // if (res.status !== 200)
+  //   throw new Error(`Failed to fetch vault blobs: ${res.status} - ${res.data?.detail}`);
+  
+
+}
+
+async function createNewVault() {
+  const iv = generateIV();
+  const emptyVault = {
+    encrypted_blob: "",
+    iv: iv,
+    version: 1,
+  }
+  const apiInstance = api(accessToken);
+  const res = await apiInstance.post("vaults/blobs/", emptyVault);
+  console.log("[Background] Created new vault via API:", res.data);
+
+  if (res.status !== 201)
+    throw new Error(`Failed to create new vault: ${res.status} - ${res.data?.detail}`);
+  
+  vault = res.data as Vault;
+  storageSet(VAULT_KEY, vault, "local");
+  console.log("[Background] Created and stored new vault");
+}
+
+async function decryptVaultBlobs() {
+  if (!vaultUnlockKey || !vault) {
+    console.warn("[Background] Cannot extract vault blobs without unlock key or vault");
+    return;
+  }
+
+  const encryptedBlob = vault.encrypted_blob;
+  const decryptedBlob = await decryptData(encryptedBlob, vault.iv, vaultUnlockKey);
+  const vaultItems: VaultItem[] = JSON.parse(decryptedBlob);
+  vaultItems.length = 0;
+  vaultItems.push(...vaultItems);
+  console.log("[Background] Decrypted vault blobs and stored in memory");
 }
 
 /**
@@ -178,12 +242,12 @@ async function unlockVault(key: CryptoKey): Promise<void> {
   await notifyContentVaultStatus();
 }
 
-async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
-  vaultBlobs.length = 0;
-  vaultBlobs.push(...vaults);
-  await storageSet(VAULT_BLOBS_KEY, vaultBlobs, "local");
-  console.log("[Background] Stored vault blobs in memory and local storage");
-}
+// async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
+//   vaultBlobs.length = 0;
+//   vaultBlobs.push(...vaults);
+//   await storageSet(VAULT_BLOBS_KEY, vaultBlobs, "local");
+//   console.log("[Background] Stored vault blobs in memory and local storage");
+// }
 
 /**
  * Notify all contexts that vault is locked
@@ -205,12 +269,12 @@ async function notifyContentVaultStatus(): Promise<void> {
   });
 }
 
-async function decryptVaultItems(encryptedItems: VaultItem[], key: CryptoKey): Promise<VaultItem[]> {
-  const vaults = await Promise.all(
-    encryptedItems.map((vault) => decryptVault(vault, key))
-  );
-  return vaults;
-}
+// async function decryptVaultItems(encryptedItems: VaultItem[], key: CryptoKey): Promise<VaultItem[]> {
+//   const vaults = await Promise.all(
+//     encryptedItems.map((vault) => decryptVault(vault, key))
+//   );
+//   return vaults;
+// }
 
 /**
  * Keep the service worker alive by creating a periodic alarm
@@ -288,7 +352,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             sendResponse({ success: false, error: "Invalid items format" });
             return;
           }
-          await storeVaultBlobs(items);
+          // await storeVaultBlobs(items);
 
           sendResponse({ success: true });
           break;
@@ -300,37 +364,37 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             break;
           }
           
-          if (!Array.isArray(vaultBlobs) || !vaultBlobs.every((item) => typeof item === "object" && item !== null)) {
+          if (!Array.isArray(vaultItems) || !vaultItems.every((item) => typeof item === "object" && item !== null)) {
             sendResponse({ success: false, error: "Invalid vaults format" });
             break;
           }
 
-          const decryptedVaults = await decryptVaultItems(vaultBlobs, vaultUnlockKey);
+          const decryptedVaults = vaultItems;
           sendResponse({ success: true, vaults: decryptedVaults });
           break;
         }
 
-        case "ENCRYPT_VAULT_ITEM": {
-          if (!vaultUnlockKey) {
-            sendResponse({ success: false, error: "Vault is locked" });
-            break;
-          }
-          const { vault } = message.payload;
-          if (typeof vault !== "object" || vault === null) {
-            sendResponse({ success: false, error: "Invalid vault format" });
-            break;
-          }
-          const encryptedVaultItem = await encryptVault(vault, vaultUnlockKey);
-          sendResponse({ success: true, blob: encryptedVaultItem });
-          break;
-        }
+        // case "ENCRYPT_VAULT_ITEM": {
+        //   if (!vaultUnlockKey) {
+        //     sendResponse({ success: false, error: "Vault is locked" });
+        //     break;
+        //   }
+        //   const { vault } = message.payload;
+        //   if (typeof vault !== "object" || vault === null) {
+        //     sendResponse({ success: false, error: "Invalid vault format" });
+        //     break;
+        //   }
+        //   const encryptedVaultItem = await encryptVault(vault, vaultUnlockKey);
+        //   sendResponse({ success: true, blob: encryptedVaultItem });
+        //   break;
+        // }
 
         // TODO: Use this to get vault items for autofill based on URL in content script
         // Since vault items are encrypted needs to be decrypted in content script after retrieval
         case "GET_VAULT_ITEMS_FOR_URL": {
           // const { url } = message.payload;
           // Implementation for filtering vault items by URL
-          sendResponse({ success: true, blobs: vaultBlobs });
+          sendResponse({ success: true, blobs: vaultItems });
           break;
         }
 

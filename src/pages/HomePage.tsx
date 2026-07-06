@@ -22,7 +22,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const [pageState, setPageState] = useState<
     "list" | "detail" | "add" | "edit"
   >("list");
-  const [selectedPasswordId, setSelectedPasswordId] = useState<number | null>(
+  const [selectedPasswordId, setSelectedPasswordId] = useState<string | null>(
     null,
   );
   const { user, isLoading, handleLogout } = useUserCredential() ?? {
@@ -129,19 +129,19 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     setSelectedPasswordId(null);
   };
 
-  const handleShowDetail = (id: number) => {
+  const handleShowDetail = (id: string) => {
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
-  const handleAddAndGoToDetail = (id: number) => {
+  const handleAddAndGoToDetail = (id: string) => {
     // Refresh the list then go to detail view
     // fetchVaultItems();
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
-  const handleEditClick = (id: number) => {
+  const handleEditClick = (id: string) => {
     setPageState("edit");
     setSelectedPasswordId(id);
   };
@@ -207,7 +207,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 
 const ListView: React.FC<{
   vaultItems: VaultItem[];
-  handleClick: (id: number) => void;
+  handleClick: (id: string) => void;
 }> = ({ vaultItems, handleClick }) => {
   return (
     <ol className="grid gap-2">

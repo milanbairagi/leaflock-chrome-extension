@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import { type AxiosResponse } from "axios";
+// import { type AxiosResponse } from "axios";
 import { type VaultItem } from "../types";
-import api from "../axios";
+// import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import Button from "../components/buttons/Button";
 import EditableVaultItem from "./EditableVaultItem";
@@ -9,16 +9,16 @@ import EditableVaultItem from "./EditableVaultItem";
 
 interface Props {
   vaultItem: VaultItem;
-  handleAddAndGoToDetail?: (id: number) => void;
+  handleAddAndGoToDetail?: (id: string) => void;
 };
 
-const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props) => {
+const EditPage: React.FC<Props> = ({ vaultItem }: Props) => {
   const [vaultItemState, setVaultItemState] = useState<VaultItem>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
 
-  const apiInstance = api(accessToken);
+  // const apiInstance = api(accessToken);
 
   const handleEditVaultItem = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -28,20 +28,20 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
 
       setLoading(true);
       try {
-        const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
-        setVaultItemState(res.data);
+        // const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
+        // setVaultItemState(res.data);
         setErrorMessage(null);
 
-        if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
+        // if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
 
       } catch (error) {
         setErrorMessage("Failed to edit vault item.");
         console.error("Error editing vault item:", error);
 
-        setTimeout(() => {
-          if (handleAddAndGoToDetail && vaultItemState.id) handleAddAndGoToDetail(vaultItemState.id);
-          setErrorMessage(null);
-        }, 2000);
+        // setTimeout(() => {
+        //   if (handleAddAndGoToDetail && vaultItemState.id) handleAddAndGoToDetail(vaultItemState.id);
+        //   setErrorMessage(null);
+        // }, 2000);
       } finally {
         setLoading(false);
       }
@@ -59,7 +59,8 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
     <div>
       <Button
         text="Back to Details"
-        handleClick={() => {if (handleAddAndGoToDetail && vaultItemState?.id) handleAddAndGoToDetail(vaultItemState.id)}}
+        handleClick={() => {}}
+        // handleClick={() => {if (handleAddAndGoToDetail && vaultItemState?.id) handleAddAndGoToDetail(vaultItemState.id)}}
       />
       <EditableVaultItem
         vaultItem={vaultItemState}

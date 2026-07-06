@@ -1,23 +1,26 @@
 import { useState, useCallback } from "react";
-import { type AxiosResponse } from "axios";
-import api from "../axios";
+// import { type AxiosResponse } from "axios";
+// import api from "../axios";
 import { generateIV } from "../utils/cryptography";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
-import type { VaultItem, CreateVaultItemPayload } from "../types";
+import type { VaultItem } from "../types";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 
 interface props {
-  handleAddAndGoToDetail?: (newItemId: number) => void;
+  handleAddAndGoToDetail?: (newItemId: string) => void;
 }
-const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
-  const [vaultItem, setVaultItem] = useState<CreateVaultItemPayload>({
+const AddNewPage = ({  }: props) => {
+  const [vaultItem, setVaultItem] = useState<VaultItem>({
+    id: "",
     title: "",
     username: "",
     password: "",
-    iv: "",
     url: "",
+    extra_fields: [],
     notes: "",
+    created_at: "",
+    updated_at: "",
   });
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -33,7 +36,7 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
     }
 
     setLoading(true);
-    const apiInstance = api(accessToken);
+    // const apiInstance = api(accessToken);
     try {
       if (!hasUnlockKey) {
         throw new Error("Vault unlock key is missing.");
@@ -52,12 +55,12 @@ const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
         throw new Error(swResponse.error || "Failed to encrypt vault item.");
       }
 
-      const encryptedVaultItem = swResponse.blob as CreateVaultItemPayload;
+      // const encryptedVaultItem = swResponse.blob as CreateVaultItemPayload;
       
 
-      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", encryptedVaultItem);
-      console.log("New vault item created:", res.data);
-      if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
+      // const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/blobs/", encryptedVaultItem);
+      // console.log("New vault item created:", res.data);
+      // if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
       setErrorMessage(null);
 
     } catch (error) {
