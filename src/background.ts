@@ -11,6 +11,7 @@ import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION, USER_DATA_KEY } from "./constants";
 import api from "./axios";
 import { isAxiosError } from "axios";
+import { mergeVaultItems } from "./utils/vaultHelper";
 
 let isHydrated = false; // Indicates if the service worker has loaded initial state from storage
 
@@ -99,44 +100,43 @@ async function initializeVault() {
     console.log("[Background] Vault is locked, skipping vault initialization");
     return;
   }
-  const isOnline = navigator.onLine;
-  const isOnlineFetchPossible = isOnline && accessToken !== null;
+  
   const storedVault = await storageGet(VAULT_KEY, "local");
 
-  try {
-    if (isOnlineFetchPossible) {
-      console.log("[Background] Online and access token available, fetching vault from API");
-      await fetchVault();
-    }
-  } catch (error) {
-    console.warn("[Background] Failed to fetch vault from API, falling back to stored vault:", error);
-    
-    // If online fetch fails, try offline
-    if (storedVault) {
-      vault = storedVault as Vault;
-      console.log("[Background] Loaded vault from storage");
-    } else {
-      console.warn("[Background] No vault found in storage");
-    }
-  } finally {
-    if (!vault || !vault.encrypted_blob) {
-      console.log("[Background] No vault item is added yet! escaping decryption.");
-      return;
-    }
-    decryptVaultBlobs()
-    .catch((error) => {
-      console.error("[Background] Failed to decrypt vault blobs:", error);
+  if (storedVault) {
+    vault = storedVault as Vault;
+    console.log("[Background] Loaded vault from storage: ", storedVault);
+    await decryptVaultBlobs().catch((error) => {
+      console.error("[Background] Failed to decrypt vault blobs during initialization:", error);
     });
+  } else {
+    console.warn("[Background] No vault found in storage");
   }
+
+  await syncVault();
+
+  if (!vault || !vault.encrypted_blob) {
+    console.log("[Background] No vault item is added yet! escaping decryption.");
+    return;
+  }
+
+  try {
+    await decryptVaultBlobs();
+  } catch(error) {
+    console.warn("[Background] Failed to decrypt vault blobs during initialization:", error);
+  }
+
 }
 
 /**
  * Fetch vault blobs from the API and store them in memory & local storage
  */
-async function fetchVault() {
+async function fetchVault(): Promise<Vault | undefined> {
   if (!accessToken) {
     console.warn("[Background] Cannot fetch vault without access token");
-    throw new Error("Access token is required to fetch vault");
+    await fetchTokens();
+    if (!accessToken)
+      throw new Error("Access token is required to fetch vault");
   }
 
   const apiInstance = api(accessToken);
@@ -144,11 +144,7 @@ async function fetchVault() {
   try {
     const res = await apiInstance.get("vaults/blobs/");
     console.log("[Background] Fetched vault blobs from API:", res);
-    
-    vault = res.data as Vault;
-    storageSet(VAULT_KEY, vault, "local");
-    console.log("[Background] Fetched and stored vault blobs from API");
-    console.log("[Background] Current vault:", vault);
+    return res.data as Vault;
   } catch (error) {
     if (isAxiosError(error)) {
       console.warn("[Background] Axios error fetching vault:", error.response?.status, error.response?.data);
@@ -162,12 +158,6 @@ async function fetchVault() {
       throw new Error(`Failed to fetch vault blobs: ${error.response?.status} - ${error.response?.data?.detail}`);
     }
   }
-
-  
-  // if (res.status !== 200)
-  //   throw new Error(`Failed to fetch vault blobs: ${res.status} - ${res.data?.detail}`);
-  
-
 }
 
 async function createNewVault() {
@@ -190,7 +180,7 @@ async function createNewVault() {
 }
 
 async function decryptVaultBlobs() {
-  if (!vaultUnlockKey || !vault) {
+  if (!vaultUnlockKey || !vault || !vault.encrypted_blob || !vault.iv) {
     console.warn("[Background] Cannot extract vault blobs without unlock key or vault");
     return;
   }
@@ -246,9 +236,15 @@ async function addNewVaultItem(vaultItem: VaultItem) {
 }
 
 async function syncVault() {
-  if (!navigator.onLine) {
+  const isOnline = navigator.onLine;
+  if (!isOnline) {
     console.log("[Background] Coundn't connect to the internet!");
     return
+  }
+
+  if (!vaultUnlockKey) {
+    console.warn("[Background] Vault is locked, cannot sync vault");
+    return;
   }
 
   if (!accessToken) {
@@ -259,9 +255,57 @@ async function syncVault() {
       return;
     }
   }
-
-  const apiInstance = api(accessToken);
   
+  const localVaultItems: VaultItem[] = vaultItems;
+  console.log("[Background] Local vault items before sync:", localVaultItems);
+  let remoteVault: Vault | undefined;
+  let remoteVaultItems: VaultItem[] = [];
+  let mergedVaultItems: VaultItem[] = [];
+  
+  const apiInstance = api(accessToken);
+
+  // Fetch vault from API if online and access token is available
+  try {
+    remoteVault = await fetchVault();
+  } catch (error) {
+    console.warn("[Background] Failed to fetch vault from API:", error);
+  }
+
+  console.log("[Background] Remote vault fetched from API:", remoteVault);
+  // Decrypt remote vault items if available
+  if (remoteVault && remoteVault.encrypted_blob) {
+    try {
+      console.log("[Background] Decrypting remote vault blob:");
+      const decryptedRemoteBlob = await decryptData(remoteVault.encrypted_blob, remoteVault.iv, vaultUnlockKey);
+      console.log("[Background] Decrypted remote vault blob:", decryptedRemoteBlob);
+      remoteVaultItems = JSON.parse(decryptedRemoteBlob) as VaultItem[];
+      console.log("[Background] Decrypted remote vault items:", remoteVaultItems);
+    } catch (error) {
+      console.warn("[Background] Failed to decrypt remote vault items:", error);
+    }
+  }
+
+  // Merge local and remote vault items
+  if (localVaultItems && remoteVaultItems) {
+    mergedVaultItems = mergeVaultItems(localVaultItems, remoteVaultItems);
+  } else if (localVaultItems) {
+    mergedVaultItems = localVaultItems;
+  } else if (remoteVaultItems) {
+    mergedVaultItems = remoteVaultItems;
+  }
+
+  // Update the vault items in memory with the merged result
+  vaultItems.length = 0;
+  vaultItems.push(...mergedVaultItems);
+  console.log("[Background] Merged vault items:", vaultItems);
+
+  // Encrypt the merged vault items and update the vault
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey!, vault!.iv);
+  vault!.encrypted_blob = encryptedBlob.ciphertext;
+  vault!.version = Math.max(vault!.version, (remoteVault?.version || 0));
+
+  // Update the vault in the API
   try {
     const res = await apiInstance.put("vaults/blobs/sync/", vault);
     if (res.status === 200) {
