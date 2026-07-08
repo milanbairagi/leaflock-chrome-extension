@@ -34,6 +34,7 @@ export type VaultItem = {
   url: string;
   extra_fields: ExtraFields[];
   notes: string;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
 };
