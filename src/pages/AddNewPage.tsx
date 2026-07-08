@@ -16,6 +16,7 @@ const AddNewPage = ({  }: props) => {
     url: "",
     extra_fields: [],
     notes: "",
+    is_deleted: false,
     created_at: "",
     updated_at: "",
   });
