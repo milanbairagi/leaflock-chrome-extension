@@ -521,6 +521,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
 
         case "ADD_NEW_VAULT_ITEM": {
+          if (!vaultUnlockKey) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
           const { vaultItem } = message.payload;
           if (typeof vaultItem !== "object" || vaultItem === null) {
             sendResponse({ success: false, error: "Invalid vault item format" });

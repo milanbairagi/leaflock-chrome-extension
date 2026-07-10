@@ -24,11 +24,11 @@ const AddNewPage = ({  }: props) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { accessToken, refreshToken, setAuthTokens, hasUnlockKey } = useAuthCredential();
+  const { setAuthTokens, hasUnlockKey } = useAuthCredential();
 
   const addNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!accessToken || !refreshToken || !hasUnlockKey) {
+    if (!hasUnlockKey) {
       setErrorMessage("Missing authentication or vault unlock key.");
       return;
     }
@@ -57,7 +57,7 @@ const AddNewPage = ({  }: props) => {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, refreshToken, setAuthTokens, vaultItem, hasUnlockKey]);
+  }, [setAuthTokens, vaultItem, hasUnlockKey]);
 
   return (
     <div>
