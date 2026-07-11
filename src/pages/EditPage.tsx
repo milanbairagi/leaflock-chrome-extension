@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { type VaultItem } from "../types";
 // import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
+import { sendServiceMessage } from "../hooks/useServiceMessage";
 import Button from "../components/buttons/Button";
 import EditableVaultItem from "./EditableVaultItem";
 
@@ -12,7 +13,7 @@ interface Props {
   handleAddAndGoToDetail?: (id: string) => void;
 };
 
-const EditPage: React.FC<Props> = ({ vaultItem }: Props) => {
+const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props) => {
   const [vaultItemState, setVaultItemState] = useState<VaultItem>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,8 +32,14 @@ const EditPage: React.FC<Props> = ({ vaultItem }: Props) => {
         // const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
         // setVaultItemState(res.data);
         setErrorMessage(null);
+        await sendServiceMessage({
+          type: "UPDATE_VAULT_ITEM",
+          payload: {
+            item: vaultItemState,
+          },
+        });
 
-        // if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
+        if (handleAddAndGoToDetail) handleAddAndGoToDetail(vaultItemState.id);
 
       } catch (error) {
         setErrorMessage("Failed to edit vault item.");

@@ -179,6 +179,31 @@ async function createNewVault() {
   console.log("[Background] Created and stored new vault");
 }
 
+async function updateVaultInStorage(vaultItem: VaultItem) {
+  if (!vaultUnlockKey || !vault) {
+    console.warn("[Background] Cannot update vault in storage without unlock key or vault");
+    return;
+  }
+  console.log("[Background] Updating vault item in storage:", vaultItem);
+  // Find vault item by ID and update it
+  const item = vaultItems.find((item) => item.id === vaultItem.id);
+  if (!item) {
+    console.warn("[Background] Vault item not found for update");
+    throw new Error("Vault item not found for update");
+    return;
+  }
+  vaultItem.updated_at = new Date().toISOString();
+  Object.assign(item, vaultItem);
+
+  // Encrypt the updated vault items and update the vault
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
+  vault.encrypted_blob = encryptedBlob.ciphertext;
+  storageSet(VAULT_KEY, vault, "local");
+
+  await syncVault();
+}
+
 async function decryptVaultBlobs() {
   if (!vaultUnlockKey || !vault || !vault.encrypted_blob || !vault.iv) {
     console.warn("[Background] Cannot extract vault blobs without unlock key or vault");
@@ -540,6 +565,22 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             console.error("[Background] Error adding new vault item:", error);
             sendResponse({ success: false, error: String(error) });
           }
+          break;
+        }
+
+        case "UPDATE_VAULT_ITEM": {
+          if (!vaultUnlockKey) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          const { item } = message.payload;
+          console.log("[Background] Received request to update vault item:", item);
+          if (typeof item !== "object" || item === null) {
+            sendResponse({ success: false, error: "Invalid vault item format" });
+            break;
+          }
+          await updateVaultInStorage(item);
+          sendResponse({ success: true });
           break;
         }
 
