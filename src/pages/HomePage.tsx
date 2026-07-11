@@ -125,6 +125,18 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     
   }, [isHydrated, isLoading, needsLogin, pageState]);
 
+  const deleteVaultIItem = async (id: string) => {
+    const response = await sendServiceMessage({
+      type: "DELETE_VAULT_ITEM",
+      payload: { id },
+    });
+    if (!response.success) {
+      console.warn("[HomePage] Failed to delete vault item:", response.error);
+      setErrorMessage("Failed to delete vault item.");
+      return;
+    }
+  };
+
   const handleBackToList = () => {
     setPageState("list");
     setSelectedPasswordId(null);
@@ -181,8 +193,9 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
             <h3 className="text-primary-0 text-2xl">Welcome! {user.username}</h3>
           } */}
           <ListView
-            vaultItems={vaultItems}
+            vaultItems={vaultItems.filter((item) => !item.is_deleted)}
             handleClick={handleShowDetail}
+            deleteVaultItem={deleteVaultIItem}
             // handleEditClick={handleEditClick}
           />
         </>
@@ -209,7 +222,8 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 const ListView: React.FC<{
   vaultItems: VaultItem[];
   handleClick: (id: string) => void;
-}> = ({ vaultItems, handleClick }) => {
+  deleteVaultItem: (id: string) => Promise<void>;
+}> = ({ vaultItems, handleClick, deleteVaultItem }) => {
   return (
     <ol className="grid gap-2">
       {vaultItems.map((item) => (
@@ -228,6 +242,16 @@ const ListView: React.FC<{
             <h4 className="text-md font-bold text-white">{item.title}</h4>
             <p className="text-sm mb-0">{item.url}</p>
             <p className="text-xs mb-0">{item.username}</p>
+
+            <button 
+              className="bg-red-500 text-white text-sm px-3 py-1 rounded-2xl hover:bg-red-700 active:bg-red-900"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteVaultItem(item.id);
+              }}
+            >
+              Delete
+            </button>
           </div>
 
           {/* <EditButton

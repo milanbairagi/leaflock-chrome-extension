@@ -260,6 +260,31 @@ async function addNewVaultItem(vaultItem: VaultItem) {
   await syncVault();
 }
 
+async function deleteVaultItem(vaultItemId: string) {
+  if (!vaultUnlockKey)
+    throw new Error("Vault is locked, cannot delete vault item");
+
+  if (!vault)
+    throw new Error("Vault is not initialized, cannot delete vault item");
+
+  const itemIndex = vaultItems.findIndex((item) => item.id === vaultItemId);
+  if (itemIndex === -1) {
+    console.warn("[Background] Vault item not found for deletion");
+    throw new Error("Vault item not found for deletion");
+  }
+
+  vaultItems[itemIndex].is_deleted = true;
+  vaultItems[itemIndex].updated_at = new Date().toISOString();
+
+  // Encrypt the updated vault items and update the vault
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
+  vault.encrypted_blob = encryptedBlob.ciphertext;
+
+  // Sync to the server
+  await syncVault();
+}
+
 async function syncVault() {
   const isOnline = navigator.onLine;
   if (!isOnline) {
@@ -579,8 +604,33 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             sendResponse({ success: false, error: "Invalid vault item format" });
             break;
           }
-          await updateVaultInStorage(item);
-          sendResponse({ success: true });
+          try {
+            await updateVaultInStorage(item);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.warn("[Background] Error updating vault item:", error);
+            sendResponse({ success: false, error: String(error) });
+          }
+          break;
+        }
+
+        case "DELETE_VAULT_ITEM": {
+          if (!vaultUnlockKey) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          const { id } = message.payload;
+          if (typeof id !== "string") {
+            sendResponse({ success: false, error: "Invalid vault item ID format" });
+            break;
+          }
+          try {
+            await deleteVaultItem(id);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.warn("[Background] Error deleting vault item:", error);
+            sendResponse({ success: false, error: String(error) });
+          }
           break;
         }
 
