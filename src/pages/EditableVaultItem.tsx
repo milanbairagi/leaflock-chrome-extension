@@ -5,25 +5,25 @@
 
 import { useState } from "react";
 import Button from "../components/buttons/Button";
-import { type VaultItem } from "../types";
+import type { VaultItem, CreateVaultItemPayload } from "../types";
 
-type props = {
-  vaultItem: VaultItem | null;
-  setVaultItem: React.Dispatch<React.SetStateAction<VaultItem | null>>;
+type props<T extends VaultItem | CreateVaultItemPayload> = {
+  vaultItem: T;
+  setVaultItem: React.Dispatch<React.SetStateAction<T>>;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isEditing?: boolean;
   loading: boolean;
   errorMessage: string | null;
 };
 
-const EditableVaultItem = ({
+const EditableVaultItem = <T extends VaultItem | CreateVaultItemPayload>({
   vaultItem,
   setVaultItem,
   onSubmit,
   isEditing = false,
   loading,
   errorMessage,
-}: props) => {
+}: props<T>) => {
   const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
 
   const togglePasswordVisibility = () => {
@@ -34,7 +34,7 @@ const EditableVaultItem = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setVaultItem((prev) => (prev ? { ...prev, [name]: value } : null));
+    setVaultItem((prev) => ({ ...prev, [name]: value }));
   };
 
   const buttonText = isEditing

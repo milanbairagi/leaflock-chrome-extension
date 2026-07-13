@@ -1,128 +1,168 @@
-import { useCallback, useEffect, useState } from "react";
-import { type AxiosResponse } from "axios";
+import { useEffect, useState } from "react";
+// import { type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
-import api from "../axios";
+// import api from "../axios";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
+import { type VaultItem } from "../types";
 
 interface props {
   goToLogin: () => void;
-  goToVaultUnlock: () => void;
 }
 
-interface VaultItem {
-  id: number;
-  title: string;
-  username: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-}
+// const vaultFetchInFlight = new Map<string, Promise<void>>();
 
-const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
+
+const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pageState, setPageState] = useState<
     "list" | "detail" | "add" | "edit"
   >("list");
-  const [selectedPasswordId, setSelectedPasswordId] = useState<number | null>(
+  const [selectedPasswordId, setSelectedPasswordId] = useState<string | null>(
     null,
   );
   const { user, isLoading, handleLogout } = useUserCredential() ?? {
     user: null,
     isLoading: true,
-    handleLogout: async () => {
-      void 0;
-    },
+    handleLogout: null,
   };
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
-    useAuthCredential();
+  const { isHydrated, hasUnlockKey } = useAuthCredential();
 
-  const needsVaultUnlock = !vaultUnlockToken;
-  const needsLogin = !isLoading && !user;
-
-  useEffect(() => {
-    if (needsVaultUnlock) goToVaultUnlock();
-  }, [needsVaultUnlock, goToVaultUnlock]);
+  const needsLogin = (!isLoading && !user) || !hasUnlockKey;
 
   useEffect(() => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
-  const fetchPasswordLists = useCallback(async () => {
-    if (!vaultUnlockToken) return;
-    const apiInstance = api(
-      accessToken,
-      refreshToken,
-      vaultUnlockToken,
-      setAuthTokens,
-    );
+  /*
+  const fetchVaultItemsOnline = useCallback(async () => {
+    if (!accessToken) return;
+
+    const inFlightRequest = vaultFetchInFlight.get(accessToken);
+    if (inFlightRequest) {
+      await inFlightRequest;
+      return;
+    }
+
+    const apiInstance = api(accessToken);
+    console.log("[HomePage] Fetching vault items with access token:", accessToken);
+
+    const request = (async () => {
+      try {
+        const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
+          "vaults/blobs/",
+        );
+        console.log("[HomePage] Fetched vault items:", res.data);
+        const vaults = res.data;
+
+        const storeRes = await sendServiceMessage({
+          type: "STORE_VAULT_ITEMS",
+          payload: {
+            items: vaults,
+          }
+        });
+
+        if (!storeRes.success) {
+          console.error("[HomePage] Failed to store vault items in background:", storeRes.error);
+          setErrorMessage("Failed to store vault items in background.");
+          return;
+        }
+
+        const decryptedVaults = await sendServiceMessage({
+          type: "GET_DECRYPTED_VAULT_ITEMS",
+        });
+      
+        if (!decryptedVaults.success) {
+          console.error("[HomePage] Failed to decrypt vault items:", decryptedVaults.error);
+          setErrorMessage("Failed to decrypt vault items.");
+          return;
+        }
+
+        console.log("[HomePage] Decrypted vault items:", decryptedVaults.vaults);
+        setVaultItems(decryptedVaults.vaults as VaultItem[]);
+
+      } catch (error) {
+        console.error("[HomePage] Error fetching vault items:", error);
+        setErrorMessage("Failed to fetch vault items.");
+      }
+    })();
+
+    vaultFetchInFlight.set(accessToken, request);
 
     try {
-      const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
-        "vaults/list-create/",
-      );
-      setVaultItems(res.data);
-    } catch (error) {
-      setErrorMessage("Failed to fetch password lists.");
+      await request;
+    } finally {
+      if (vaultFetchInFlight.get(accessToken) === request) {
+        vaultFetchInFlight.delete(accessToken);
+      }
     }
-  }, [accessToken, refreshToken, setAuthTokens, vaultUnlockToken]);
+  }, [accessToken, refreshToken, setAuthTokens, hasUnlockKey]);
+  */
+
 
   useEffect(() => {
-    if (needsVaultUnlock) return;
-    if (isLoading) return;
-    if (!user) return;
-    const timeoutId = globalThis.setTimeout(() => {
-      void fetchPasswordLists();
-    }, 0);
+    if (!isHydrated || isLoading || needsLogin) return;
+    if (!pageState) return;
 
-    return () => {
-      globalThis.clearTimeout(timeoutId);
-    };
-  }, [fetchPasswordLists, isLoading, needsVaultUnlock, user]);
+    (async () => {
+      const response = await sendServiceMessage({
+        type: "GET_DECRYPTED_VAULT_ITEMS",
+      });
 
-  useEffect(() => {
-    if (vaultItems.length === 0) return;
-    sendServiceMessage({
-      type: "STORE_VAULT_ITEMS",
-      payload: {
-        items: vaultItems,
-      },
+      if (!response.success) {
+        console.error("[HomePage] Failed to get decrypted vault items:", response.error);
+        setErrorMessage("Failed to get decrypted vault items.");
+        return;
+      }
+
+      console.log("[HomePage] Decrypted vault items:", response.vaults);
+      setVaultItems(response.vaults as VaultItem[]);
+    })();
+    
+  }, [isHydrated, isLoading, needsLogin, pageState]);
+
+  const deleteVaultIItem = async (id: string) => {
+    const response = await sendServiceMessage({
+      type: "DELETE_VAULT_ITEM",
+      payload: { id },
     });
-  }, [vaultItems]);
-
-  if (needsVaultUnlock) return null;
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (needsLogin) return null;
+    if (!response.success) {
+      console.warn("[HomePage] Failed to delete vault item:", response.error);
+      setErrorMessage("Failed to delete vault item.");
+      return;
+    }
+  };
 
   const handleBackToList = () => {
     setPageState("list");
     setSelectedPasswordId(null);
   };
 
-  const handleShowDetail = (id: number) => {
+  const handleShowDetail = (id: string) => {
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
-  const handleAddAndGoToDetail = (id: number) => {
+  const handleAddAndGoToDetail = (id: string) => {
     // Refresh the list then go to detail view
-    fetchPasswordLists();
+    // fetchVaultItems();
     setSelectedPasswordId(id);
     setPageState("detail");
   };
 
-  const handleEditClick = (id: number) => {
+  const handleEditClick = (id: string) => {
     setPageState("edit");
     setSelectedPasswordId(id);
   };
+
+  if (!isHydrated || isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (needsLogin) return null;
 
   return (
     <div className="p-5 rounded-md">
@@ -138,6 +178,8 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
 
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
+      <h1>{pageState}</h1>
+
       {pageState === "add" && (
         <>
           <button onClick={handleBackToList}>Back to List</button>
@@ -151,22 +193,23 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
             <h3 className="text-primary-0 text-2xl">Welcome! {user.username}</h3>
           } */}
           <ListView
-            vaultItems={vaultItems}
+            vaultItems={vaultItems.filter((item) => !item.is_deleted)}
             handleClick={handleShowDetail}
+            deleteVaultItem={deleteVaultIItem}
             // handleEditClick={handleEditClick}
           />
         </>
       )}
       {pageState === "detail" && selectedPasswordId !== null && (
         <PasswordDetailPage
-          id={selectedPasswordId}
+          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
           goBack={handleBackToList}
           handleEditClick={handleEditClick}
         />
       )}
       {pageState === "edit" && selectedPasswordId !== null && (
         <EditPage
-          id={selectedPasswordId}
+          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
           handleAddAndGoToDetail={handleAddAndGoToDetail}
         />
       )}
@@ -178,8 +221,9 @@ const HomePage: React.FC<props> = ({ goToLogin, goToVaultUnlock }: props) => {
 
 const ListView: React.FC<{
   vaultItems: VaultItem[];
-  handleClick: (id: number) => void;
-}> = ({ vaultItems, handleClick }) => {
+  handleClick: (id: string) => void;
+  deleteVaultItem: (id: string) => Promise<void>;
+}> = ({ vaultItems, handleClick, deleteVaultItem }) => {
   return (
     <ol className="grid gap-2">
       {vaultItems.map((item) => (
@@ -198,6 +242,16 @@ const ListView: React.FC<{
             <h4 className="text-md font-bold text-white">{item.title}</h4>
             <p className="text-sm mb-0">{item.url}</p>
             <p className="text-xs mb-0">{item.username}</p>
+
+            <button 
+              className="bg-red-500 text-white text-sm px-3 py-1 rounded-2xl hover:bg-red-700 active:bg-red-900"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteVaultItem(item.id);
+              }}
+            >
+              Delete
+            </button>
           </div>
 
           {/* <EditButton

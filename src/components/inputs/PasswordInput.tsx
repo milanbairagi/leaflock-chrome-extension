@@ -5,6 +5,7 @@ type PasswordInputProps = {
   label?: string | undefined | null;
   password?: string | undefined | null;
   setPassword?: (password: string) => void;
+  name?: string | undefined | null;
 
   id?: string | undefined | null;
   placeholder?: string | undefined | null;
@@ -16,6 +17,7 @@ const PasswordInput = ({
   label,
   password,
   setPassword,
+  name,
   id,
   placeholder,
   className,
@@ -37,6 +39,7 @@ const PasswordInput = ({
         <input
           type={showPassword ? "text" : "password"}
           id={id || ""}
+          name={name || ""}
           value={password || ""}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             setPassword && setPassword(e.target.value)

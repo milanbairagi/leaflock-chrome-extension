@@ -2,30 +2,35 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import api from "../axios";
 import { type AxiosInstance, type AxiosResponse } from "axios";
 import { useAuthCredential } from "./useAuthCredential";
-
-export type User = {
-  id: number;
-  username: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-};
+import { storageGet, storageSet } from "../utils/storage";
+import { USER_DATA_KEY } from "../constants";
+import { type User } from "../types";
 
 interface ContextResponse {
   user: User | null;
   isLoading: boolean;
   handleLogout : () => Promise<void>;
-  hasSetMasterPassword: boolean | null;
-  setHasSetMasterPassword: (value: boolean | null) => void;
 };
 
 const fetchUserData = async (api: AxiosInstance): Promise<User> => {
   try {
+    // Try online first
+    console.log("[User] Trying fetching user data");
     const res: AxiosResponse<User> = await api.get<User>("accounts/me/");
+    console.log("[User] fetch response: ", res);
+    await storageSet(USER_DATA_KEY, res.data, "local");
     return res.data;
   } catch (error) {
     console.error("Failed to fetch user data:", error);
-    throw error;
+    // If online fetch fails, try offline
+    const storedUserData = await storageGet(USER_DATA_KEY, "local");
+    console.log("[User] Got stored user data: ", storedUserData);
+    if (storedUserData) {
+      return storedUserData as User;
+    } else {
+      throw new Error("No user data available offline.");
+    }
+    
   }
 };
 
@@ -34,67 +39,48 @@ const UserCredentialContext = createContext<ContextResponse | null>(null);
 
 export const UserCredentialProvider = ({ children, }: {children: ReactNode;}) => {
   const [user, setUser] = useState<User | null>(null);
-  const [hasSetMasterPassword, setHasSetMasterPassword] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const {accessToken, refreshToken, setAuthTokens, clearAuthTokens, lockVault} = useAuthCredential();
+  const {accessToken, hasUnlockKey, lockVault} = useAuthCredential();
   const apiInstance = useMemo(
-    () => api(accessToken, refreshToken, null, setAuthTokens),
-    [accessToken, refreshToken, setAuthTokens]
+    () => api(accessToken),
+    [accessToken]
   );
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
 
-    if (!refreshToken) {
+    if (!hasUnlockKey) {
       setUser(null);
       setIsLoading(false);
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
     // Fetch user data
     (async () => {
       try {
+        setIsLoading(true);
+        if (!isMounted) return;
         const userData: User = await fetchUserData(apiInstance);
-        const hasSetMasterPasswordStatus = await checkHasSetMasterPassword(apiInstance);
-
-        if (isMounted) setUser(userData);
-        if (isMounted) setHasSetMasterPassword(hasSetMasterPasswordStatus);
+        setUser(userData);
       } catch {
-        if (isMounted) setUser(null);
+        setUser(null);
       } finally {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [refreshToken, apiInstance]);
-
-  const checkHasSetMasterPassword = async (api: AxiosInstance) : Promise<boolean | null> => {
-    try {
-      const res: AxiosResponse<{has_master_key: boolean}> = await api.get("accounts/master-key/");
-      if (res.status === 200) {
-        return res.data.has_master_key;
-      }
-      return null;
-
-    } catch (error) {
-      return null;
-    }
-  };
+  }, [accessToken, hasUnlockKey, apiInstance]);
 
   const handleLogout = async () => {
-    await clearAuthTokens();
     await lockVault();
     setUser(null);
   };
 
   return (
-    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout, hasSetMasterPassword, setHasSetMasterPassword }}>
+    <UserCredentialContext.Provider value={{ user, isLoading, handleLogout }}>
       {children}
     </UserCredentialContext.Provider>
   );

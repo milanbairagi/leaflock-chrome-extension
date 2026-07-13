@@ -3,6 +3,7 @@ type TextInputProps = {
   text?: string | undefined | null;
   setText?: (text: string) => void;
   type?: string | undefined | null;
+  name?: string | undefined | null;
 
   id?: string | undefined | null;
   placeholder?: string | undefined | null;
@@ -15,6 +16,7 @@ const TextInput = ({
   text,
   setText,
   type,
+  name,
   id,
   placeholder = label,
   className,
@@ -29,6 +31,7 @@ const TextInput = ({
       )}
       <input
         type={type || "text"}
+        name={name || ""}
         id={id || ""}
         value={text || ""}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>

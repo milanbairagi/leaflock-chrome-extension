@@ -6,17 +6,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import api from "../axios";
+import { storageGet, storageRemove, storageSet } from "../utils/storage";
+import { authHash } from "../utils/cryptography";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, PASSWORD_VERIFIER_KEY, SALT_KEY } from "../constants";
+import { type AuthTokens } from "../types";
 
 type NullableString = string | null;
-interface BackgroundMsgResType {
-  success: boolean;
-  [key: string]: unknown;
-}
 
-// Module-level variable for axios interceptor
-let currentAccessToken: NullableString = null;
-
-export const getAccessToken = (): NullableString => currentAccessToken;
 
 /**
  * Send message to service worker and wait for response
@@ -29,18 +26,11 @@ const sendMessageToBackground = <T,>(message: {
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
-      } else if (response?.success === false) {
-        reject(new Error(response.error || "Unknown error"));
       } else {
         resolve(response as T);
       }
     });
   });
-};
-
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken?: string;
 };
 
 type AuthCredentialContextValue = {
@@ -50,10 +40,9 @@ type AuthCredentialContextValue = {
   refreshToken: NullableString;
 
   setAuthTokens: (tokens: AuthTokens) => Promise<void>;
-  clearAuthTokens: () => Promise<void>;
 
-  vaultUnlockToken: NullableString;
-  unlockVault: (token: string) => Promise<void>;
+  hasUnlockKey: boolean;
+  unlockVault: (password: string, salt: string) => Promise<void>;
   lockVault: () => Promise<void>;
 };
 
@@ -69,43 +58,33 @@ export const AuthCredentialProvider = ({
   const [isHydrated, setIsHydrated] = useState(false);
   const [accessToken, setAccessToken] = useState<NullableString>(null);
   const [refreshToken, setRefreshToken] = useState<NullableString>(null);
-  const [vaultUnlockToken, setVaultUnlockToken] = useState<NullableString>(null);
+  const [hasUnlockKey, setHasUnlockKey] = useState<boolean>(false);
 
-  // Sync currentAccessToken for axios interceptor
-  useEffect(() => {
-    currentAccessToken = accessToken;
-    return () => {
-      currentAccessToken = null;
-    };
-  }, [accessToken]);
-
-  // Load initial state from service worker
+  // Load initial state from session storage and SW
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
         // Get tokens from service worker
-        const [accessResponse, refreshResponse, vaultResponse] = await Promise.all([
-          sendMessageToBackground<{ accessToken: string | null }>({
-            type: "GET_ACCESS_TOKEN",
-          }),
-          sendMessageToBackground<{ refreshToken: string | null }>({
-            type: "GET_REFRESH_TOKEN",
-          }),
-          sendMessageToBackground<{ vaultUnlockToken: string | null }>({
-            type: "GET_VAULT_UNLOCK_TOKEN",
-          }),
-        ]);
+        const [access, refresh, hasKeyResponse] =
+          await Promise.all([
+            storageGet(ACCESS_TOKEN_KEY, "session"),
+            storageGet(REFRESH_TOKEN_KEY, "session"),
+            sendMessageToBackground<{ success: boolean }>({
+              type: "HAS_UNLOCK_KEY",
+            }),
+          ]);
 
         if (!isMounted) return;
 
-        setAccessToken(accessResponse.accessToken);
-        setRefreshToken(refreshResponse.refreshToken);
-        setVaultUnlockToken(vaultResponse.vaultUnlockToken);
-        setIsHydrated(true);
+        setHasUnlockKey(hasKeyResponse.success);
+        setAccessToken(access);
+        setRefreshToken(refresh);
+
       } catch (error) {
         console.error("[AuthCredential] Failed to hydrate from service worker:", error);
+      } finally {
         if (isMounted) {
           setIsHydrated(true);
         }
@@ -121,7 +100,7 @@ export const AuthCredentialProvider = ({
   useEffect(() => {
     const handleMessage = (message: { type: string }) => {
       if (message.type === "VAULT_LOCKED") {
-        setVaultUnlockToken(null);
+        setHasUnlockKey(false);
       }
     };
 
@@ -133,42 +112,109 @@ export const AuthCredentialProvider = ({
   }, []);
 
   const setAuthTokens = useCallback(async (tokens: AuthTokens) => {
-    const response: BackgroundMsgResType = await sendMessageToBackground({
-      type: "SET_AUTH_TOKENS",
-      payload: {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      },
-    });
-    if (response.success) {
-      setAccessToken(tokens.accessToken);
-      setRefreshToken(tokens.refreshToken || null);
-    } else {
-      throw new Error("Failed to set auth tokens in background");
+    console.log("[AuthCredential] Setting auth tokens:", tokens);
+    storageSet(ACCESS_TOKEN_KEY, tokens.accessToken, "session");
+    storageSet(REFRESH_TOKEN_KEY, tokens.refreshToken, "session");
+    setAccessToken(tokens.accessToken);
+    setRefreshToken(tokens.refreshToken);
+
+    // Testing
+    const access = await storageGet(ACCESS_TOKEN_KEY, "session");
+    const refresh = await storageGet(REFRESH_TOKEN_KEY, "session");
+    console.log("[AuthCredential] Tokens after setting:", { access, refresh });
+  }, []);
+
+  const unlockVault = useCallback(async (password: string, email: string) => {
+    console.log("[AuthCredential] Unlocking vault with:", password, email);
+    const hashPassword = await authHash(password, email);
+    const apiInstance = api(null);
+
+    let isOnline = navigator.onLine;
+
+    // Check if offline unlock is possible
+    let isOfflinePossible = false;
+    const storedPasswordVerifier = await storageGet(PASSWORD_VERIFIER_KEY, "local");
+    const storedSalt = await storageGet(SALT_KEY, "local");
+    console.log("[AuthCredentail] salt, password verifier: ", storedSalt, storedPasswordVerifier);
+    if (storedPasswordVerifier && storedSalt) {
+      isOfflinePossible = true;
     }
-  }, []);
 
-  const clearAuthTokens = useCallback(async () => {
-    setAccessToken(null);
-    setRefreshToken(null);
-    await sendMessageToBackground({
-      type: "CLEAR_AUTH_TOKENS",
-    });
-  }, []);
+    let onlineUnlockSuccess = false;
+    async function onlineUnlock() {
+      if (!isOnline) {
+        throw new Error("Cannot perform online unlock while offline.");
+      }
+      const response = await apiInstance.post("/accounts/token/", {
+        email,
+        password: hashPassword,
+      });
+      if (response.status !== 200) {
+        throw new Error(`Failed to unlock vault online: ${response.status}`);
+      }
 
-  const unlockVault = useCallback(async (token: string) => {
-    setVaultUnlockToken(token);
-    await sendMessageToBackground({
-      type: "UNLOCK_VAULT",
-      payload: { token }
-    });
+      // Update tokens in session storage and state
+      const token: AuthTokens = {
+        accessToken: response.data.access,
+        refreshToken: response.data.refresh,
+      };
+      await setAuthTokens(token);
+
+      // Get the salt from the server and use it to derive the vault unlock key
+      const freshApi = api(token.accessToken);
+      const responseSalt = await freshApi.get("/accounts/salt/");
+      const salt = responseSalt.data.salt;
+
+      // Store the password verifier and salt in local storage for offline unlock
+      const passwordVerifier = await authHash(hashPassword, salt);
+      await storageSet(PASSWORD_VERIFIER_KEY, passwordVerifier, "local");
+      await storageSet(SALT_KEY, salt, "local");
+
+      // Unlock the vault with the derived key
+      await sendMessageToBackground({
+        type: "UNLOCK_VAULT",
+        payload: { password, salt },
+      });
+      setHasUnlockKey(true);
+      onlineUnlockSuccess = true;
+    }
+
+    async function offlineUnlock() {
+      if (!isOfflinePossible) {
+        throw new Error("Cannot perform offline unlock without password verifier and salt.");
+      }
+      if (await authHash(hashPassword, storedSalt) !== storedPasswordVerifier) {
+        throw new Error("Password does not match verifier.");
+      }
+      // Unlock the vault with the stored salt
+      await sendMessageToBackground({
+        type: "UNLOCK_VAULT",
+        payload: { password, salt: storedSalt },
+      });
+      setHasUnlockKey(true);
+    }
+
+    try {
+      console.log("[AuthCredential] Attempting to unlock vault. Online:", isOnline, "Offline possible:", isOfflinePossible);
+      await onlineUnlock();
+    } catch (error) {
+      if (isOfflinePossible && !onlineUnlockSuccess) {
+        console.log("[AuthCredential] Online unlock failed or not possible. Attempting offline unlock.");
+        await offlineUnlock();
+      }
+    }
+
   }, []);
 
   const lockVault = useCallback(async () => {
-    setVaultUnlockToken(null);
     await sendMessageToBackground({
       type: "LOCK_VAULT",
     });
+    setAccessToken(null);
+    setRefreshToken(null);
+    setHasUnlockKey(false);
+    storageRemove(ACCESS_TOKEN_KEY, "session");
+    storageRemove(REFRESH_TOKEN_KEY, "session");
   }, []);
 
   const value = useMemo<AuthCredentialContextValue>(
@@ -177,8 +223,7 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      clearAuthTokens,
-      vaultUnlockToken,
+      hasUnlockKey,
       unlockVault,
       lockVault,
     }),
@@ -187,8 +232,7 @@ export const AuthCredentialProvider = ({
       accessToken,
       refreshToken,
       setAuthTokens,
-      clearAuthTokens,
-      vaultUnlockToken,
+      hasUnlockKey,
       unlockVault,
       lockVault,
     ]

@@ -1,63 +1,70 @@
 import { useState, useCallback } from "react";
-import { type AxiosResponse } from "axios";
-import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import EditableVaultItem from "./EditableVaultItem";
 import type { VaultItem } from "../types";
+import { sendServiceMessage } from "../hooks/useServiceMessage";
 
 interface props {
-  handleAddAndGoToDetail?: (newItemId: number) => void;
+  handleAddAndGoToDetail?: (newItemId: string) => void;
 }
-const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
-  const [vaultItem, setVaultItem] = useState<VaultItem | null>({
+const AddNewPage = ({  }: props) => {
+  const [vaultItem, setVaultItem] = useState<VaultItem>({
+    id: "",
     title: "",
     username: "",
     password: "",
     url: "",
+    extra_fields: [],
     notes: "",
+    is_deleted: false,
+    created_at: "",
+    updated_at: "",
   });
 
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } = useAuthCredential();
+  const { setAuthTokens, hasUnlockKey } = useAuthCredential();
 
-  const fetchNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const addNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!hasUnlockKey) {
+      setErrorMessage("Missing authentication or vault unlock key.");
+      return;
+    }
 
     setLoading(true);
-    const apiInstance = api(accessToken, refreshToken, vaultUnlockToken, setAuthTokens);
     try {
-      const res: AxiosResponse<VaultItem> = await apiInstance.post("vaults/list-create/", vaultItem);
-      if (handleAddAndGoToDetail && res.data.id) handleAddAndGoToDetail(res.data.id);
+      if (!hasUnlockKey) {
+        throw new Error("Vault unlock key is missing.");
+      }
+      
+      const swResponse = await sendServiceMessage({
+        type: "ADD_NEW_VAULT_ITEM",
+        payload: { 
+          vaultItem,
+        },
+      });
+      
+      if (!swResponse.success) {
+        throw new Error(swResponse.error || "Failed to add new vault item.");
+      }
       setErrorMessage(null);
+
     } catch (error) {
-      setErrorMessage("Failed to fetch new vault item.");
-      console.error("Error fetching new vault item:", error);
+      setErrorMessage("Failed to add new vault item.");
+      console.error("Error adding new vault item:", error);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, refreshToken, vaultUnlockToken, setAuthTokens, vaultItem]);
+  }, [setAuthTokens, vaultItem, hasUnlockKey]);
 
   return (
     <div>
-      {/* <form onSubmit={fetchNewVaultItem}>
-        title: <input type="text" value={vaultItem?.title} onChange={(e) => setVaultItem({ ...vaultItem, title: e.target.value })} /><br />
-        username: <input type="text" value={vaultItem?.username} onChange={(e) => setVaultItem({ ...vaultItem, username: e.target.value })} /><br />
-        password: <input type="password" value={vaultItem?.password} onChange={(e) => setVaultItem({ ...vaultItem, password: e.target.value })} /><br />
-        url: <input type="text" value={vaultItem?.url} onChange={(e) => setVaultItem({ ...vaultItem, url: e.target.value })} /><br />
-        notes: <textarea value={vaultItem?.notes} onChange={(e) => setVaultItem({ ...vaultItem, notes: e.target.value })} /><br />
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-        {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
-      </form> */}
-
       <EditableVaultItem
         vaultItem={vaultItem}
         setVaultItem={setVaultItem}
-        onSubmit={fetchNewVaultItem}
+        onSubmit={addNewVaultItem}
         isEditing={false}
         loading={loading}
         errorMessage={errorMessage}

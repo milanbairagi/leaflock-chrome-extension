@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
-import type { AxiosResponse } from "axios";
-import api from "../axios";
-import {
-  useAuthCredential,
-  type AuthTokens,
-} from "../contexts/useAuthCredential";
+import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
+import { storageGet } from "../utils/storage";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import logo from "../assets/images/Logo.svg";
+import { USER_DATA_KEY } from "../constants";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
 
@@ -17,7 +14,7 @@ interface props {
 }
 
 const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,55 +26,52 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError,
   } = useAxiosErrorHandler();
 
-  const { accessToken, refreshToken, vaultUnlockToken, setAuthTokens } =
-    useAuthCredential();
+  const { isHydrated, unlockVault, hasUnlockKey } = useAuthCredential();
   const { user, isLoading } = useUserCredential() ?? {
     user: null,
     isLoading: true,
   };
 
   useEffect(() => {
-    if (!isLoading && user) goToHome();
-  }, [isLoading, user, goToHome]);
-
-  interface LoginResponseData {
-    access: string;
-    refresh: string;
-  }
-  const apiInstance = api(
-    accessToken,
-    refreshToken,
-    vaultUnlockToken,
-    setAuthTokens,
-  );
+    storageGet(USER_DATA_KEY)
+    .then((userData) => {
+      if (userData && userData.email) {
+        setEmail(userData.email);
+      }
+    });
+  }, []);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitting(true);
     clearError();
     try {
-      const response: AxiosResponse<LoginResponseData> = await apiInstance.post(
-        "/accounts/token/",
-        {
-          username: username,
-          password: password,
-        },
-      );
-      const token: AuthTokens = {
-        accessToken: response.data.access,
-        refreshToken: response.data.refresh,
-      };
-      await setAuthTokens(token);
+      setSubmitting(true);
+      console.log("[LoginPage] Attempting to unlock vault with email:", email);
+      await unlockVault(password, email);
+
+      goToHome();
     } catch (error) {
       handleError(error);
       if (isAuthError.current) {
-        setErrorMessage("Invalid username or password.");
+        setErrorMessage("Invalid email or password.");
       }
     } finally {
       setSubmitting(false);
     }
   };
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (hasUnlockKey && user) {
+    goToHome();
+    return null;
+  }
 
+  if (!isHydrated) {
+    return <div>Loading...</div>;
+  }
+  
   return (
     <div className="p-5 rounded-md h-full">
       <div className="flex justify-center items-center flex-col mb-8">
@@ -85,15 +79,11 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
         <p className="text-center">Secure Password Manager</p>
       </div>
       <form onSubmit={handleLogin} className="flex flex-col gap-4">
-        {/* Test */}
-        {/* <p>Access Token: {accessToken}</p>
-        <p>Refresh Token: {refreshToken}</p> */}
-
         <TextInput
-          label="Username"
-          text={username}
-          setText={setUsername}
-          placeholder="Enter your username"
+          label="Email"
+          text={email}
+          setText={setEmail}
+          placeholder="Enter your email"
         />
 
         <PasswordInput
@@ -117,7 +107,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
                       active:bg-accent-90
                       transition-colors duration-200 ease-in-out
           "
-          disabled={!username || !(password.length >= 5) || submitting}
+          disabled={!email || !(password.length >= 5) || submitting}
         >
           {submitting ? "Logging in..." : "Login"}
         </button>
