@@ -49,6 +49,18 @@ body {
     --color-accent-80: #577f4c;
     --color-accent-90: #4a6d41;
 
+    /* Red (Tertiary) */
+    --color-tertiary-0: #d3ada7;
+    --color-tertiary-10: #cc9f98;
+    --color-tertiary-20: #c59189;
+    --color-tertiary-30: #c59189;
+    --color-tertiary-40: #bd847b;
+    --color-tertiary-50: #b6766c; /* Base */
+    --color-tertiary-60: #a46a61;
+    --color-tertiary-70: #925e56;
+    --color-tertiary-80: #7f534c;
+    --color-tertiary-90: #6d4741;
+
     /* Background */
     --color-background: #1f2122;
 }
