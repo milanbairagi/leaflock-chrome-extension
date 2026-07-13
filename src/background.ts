@@ -67,7 +67,7 @@ async function initialize() {
     await initializeVault();
 
   } catch (error) {
-    console.error("[Background] Error initializing service worker:", error);
+    console.warn("[Background] Error initializing service worker:", error);
   } finally {
     isHydrated = true;
   }
@@ -429,6 +429,8 @@ async function lockVault(): Promise<void> {
 async function unlockVault(key: CryptoKey): Promise<void> {
   vaultUnlockKey = key;
   unlockTimestamp = Date.now();
+  console.log("[Background] Vault unlocked with key:", vaultUnlockKey);
+  console.log("[Background] Vault unlocked at timestamp:", unlockTimestamp);
 
   storageSet(UNLOCK_TIMESTAMP_KEY, unlockTimestamp, "session");
 
@@ -542,10 +544,11 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
         case "UNLOCK_VAULT": {
           const { password, salt } = message.payload;
-          // console.log("[Background] Received unlock request with password and salt: ", password, salt);
+          console.log("[Background] Received unlock request with password and salt: ", password, salt);
 
           // Implementation for unlocking vault with password and salt
           const vaultUnlockKey = await deriveKey(password, salt);
+          console.log("[Background] Derived vault unlock key:", vaultUnlockKey);
           await unlockVault(vaultUnlockKey);
           sendResponse({ success: true });
 
