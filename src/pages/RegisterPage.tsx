@@ -7,6 +7,7 @@ import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import { authHash } from "../utils/cryptography";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
+import Button from "../components/buttons/Button";
 
 interface props {
   goToHome: () => void;
@@ -130,14 +131,9 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
             <p>{errorMessage}</p>
           </div>
         )}
-        <button
+        <Button
           type="submit"
-          className="text-center text-white bg-accent-50 rounded-4xl py-2 mt-4 cursor-pointer 
-                      hover:bg-accent-70
-                      disabled:bg-accent-20 disabled:cursor-not-allowed
-                      active:bg-accent-90
-                      transition-colors duration-200 ease-in-out
-          "
+          className="mt-4"
           disabled={
             submitting ||
             !userState.email ||
@@ -146,7 +142,7 @@ const RegisterPage: React.FC<props> = ({ goToHome, goToLogin }: props) => {
           }
         >
           {submitting ? "Registering..." : "Register"}
-        </button>
+        </Button>
       </form>
 
       <p className="text-secondary-20 text-sm text-center mt-4">

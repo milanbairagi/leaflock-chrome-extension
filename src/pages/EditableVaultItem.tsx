@@ -3,9 +3,11 @@
  * It is used by the AddNewPage and EditPage to render the form for editing a vault item.
  */
 
-import { useState } from "react";
 import Button from "../components/buttons/Button";
 import type { VaultItem, CreateVaultItemPayload } from "../types";
+import TextInput from "../components/inputs/TextInput";
+import PasswordInput from "../components/inputs/PasswordInput";
+import TextareaInput from "../components/inputs/TextareaInput";
 
 type props<T extends VaultItem | CreateVaultItemPayload> = {
   vaultItem: T;
@@ -24,18 +26,6 @@ const EditableVaultItem = <T extends VaultItem | CreateVaultItemPayload>({
   loading,
   errorMessage,
 }: props<T>) => {
-  const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
-
-  const togglePasswordVisibility = () => {
-    setPasswordVisible(!passwordVisible);
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setVaultItem((prev) => ({ ...prev, [name]: value }));
-  };
 
   const buttonText = isEditing
     ? loading
@@ -47,56 +37,48 @@ const EditableVaultItem = <T extends VaultItem | CreateVaultItemPayload>({
 
   return (
     <div>
-      <form onSubmit={onSubmit}>
-        title:{" "}
-        <input
-          type="text"
-          value={vaultItem?.title}
-          onChange={handleChange}
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <TextInput
+          label="Title"
+          text={vaultItem?.title}
+          setText={(value) => setVaultItem((prev) => ({ ...prev, title: value }))}
           name="title"
         />
-        <br />
-        username:{" "}
-        <input
-          type="text"
-          value={vaultItem?.username}
-          onChange={handleChange}
+        
+        <TextInput
+          label="Username"
+          text={vaultItem?.username}
+          setText={(value) => setVaultItem((prev) => ({ ...prev, username: value }))}
           name="username"
         />
-        <br />
-        password:{" "}
-        <input
-          type={passwordVisible ? "text" : "password"}
-          value={vaultItem?.password}
-          onChange={handleChange}
+        
+        <PasswordInput
+          label="Password"
+          password={vaultItem?.password}
+          setPassword={(value) => setVaultItem((prev) => ({ ...prev, password: value }))}
           name="password"
         />
-        <Button
-          text={passwordVisible ? "Hide" : "Show"}
-          handleClick={togglePasswordVisibility}
-        />
-        <br />
-        url:{" "}
-        <input
-          type="text"
-          value={vaultItem?.url}
-          onChange={handleChange}
+        
+        <TextInput
+          label="URL"
+          text={vaultItem?.url}
+          setText={(value) => setVaultItem((prev) => ({ ...prev, url: value }))}
           name="url"
         />
-        <br />
-        notes:{" "}
-        <textarea
-          value={vaultItem?.notes || ""}
-          onChange={handleChange}
+        
+        <TextareaInput
+          label="Notes"
+          text={vaultItem?.notes}
+          setText={(value) => setVaultItem((prev) => ({ ...prev, notes: value }))}
           name="notes"
         />
-        <br />
-        <button type="submit" disabled={loading}>
+        
+        <Button variant="primary" type="submit" disabled={loading} className="mt-2">
           {buttonText}
-        </button>
+        </Button>
       </form>
 
-      {errorMessage && <div style={{ color: "red" }}>{errorMessage}</div>}
+      {errorMessage && <div className="text-red-500">{errorMessage}</div>}
     </div>
   );
 };

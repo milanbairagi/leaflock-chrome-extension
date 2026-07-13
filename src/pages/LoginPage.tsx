@@ -7,6 +7,7 @@ import logo from "../assets/images/Logo.svg";
 import { USER_DATA_KEY } from "../constants";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
+import Button from "../components/buttons/Button";
 
 interface props {
   goToHome: () => void;
@@ -99,18 +100,13 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
           </div>
         )}
 
-        <button
+        <Button
           type="submit"
-          className="text-center text-white bg-accent-50 rounded-4xl py-2 mt-4 cursor-pointer 
-                      hover:bg-accent-70
-                      disabled:bg-accent-20 disabled:cursor-not-allowed
-                      active:bg-accent-90
-                      transition-colors duration-200 ease-in-out
-          "
+          className="mt-4"
           disabled={!email || !(password.length >= 5) || submitting}
         >
           {submitting ? "Logging in..." : "Login"}
-        </button>
+        </Button>
       </form>
 
       <p className="text-accent-20 cursor-pointer text-center text-md mt-4">

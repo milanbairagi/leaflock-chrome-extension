@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-// import { type AxiosResponse } from "axios";
 import { useUserCredential } from "../contexts/useUser";
 import { useAuthCredential } from "../contexts/useAuthCredential";
-// import api from "../axios";
+import { FaArrowLeft } from "react-icons/fa";
 import PasswordDetailPage from "./PasswordDetailPage";
 import AddNewPage from "./AddNewPage";
 import EditPage from "./EditPage";
+import Button from "../components/buttons/Button";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 import { type VaultItem } from "../types";
 
@@ -37,71 +37,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   useEffect(() => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
-
-  /*
-  const fetchVaultItemsOnline = useCallback(async () => {
-    if (!accessToken) return;
-
-    const inFlightRequest = vaultFetchInFlight.get(accessToken);
-    if (inFlightRequest) {
-      await inFlightRequest;
-      return;
-    }
-
-    const apiInstance = api(accessToken);
-    console.log("[HomePage] Fetching vault items with access token:", accessToken);
-
-    const request = (async () => {
-      try {
-        const res: AxiosResponse<VaultItem[]> = await apiInstance.get(
-          "vaults/blobs/",
-        );
-        console.log("[HomePage] Fetched vault items:", res.data);
-        const vaults = res.data;
-
-        const storeRes = await sendServiceMessage({
-          type: "STORE_VAULT_ITEMS",
-          payload: {
-            items: vaults,
-          }
-        });
-
-        if (!storeRes.success) {
-          console.error("[HomePage] Failed to store vault items in background:", storeRes.error);
-          setErrorMessage("Failed to store vault items in background.");
-          return;
-        }
-
-        const decryptedVaults = await sendServiceMessage({
-          type: "GET_DECRYPTED_VAULT_ITEMS",
-        });
-      
-        if (!decryptedVaults.success) {
-          console.error("[HomePage] Failed to decrypt vault items:", decryptedVaults.error);
-          setErrorMessage("Failed to decrypt vault items.");
-          return;
-        }
-
-        console.log("[HomePage] Decrypted vault items:", decryptedVaults.vaults);
-        setVaultItems(decryptedVaults.vaults as VaultItem[]);
-
-      } catch (error) {
-        console.error("[HomePage] Error fetching vault items:", error);
-        setErrorMessage("Failed to fetch vault items.");
-      }
-    })();
-
-    vaultFetchInFlight.set(accessToken, request);
-
-    try {
-      await request;
-    } finally {
-      if (vaultFetchInFlight.get(accessToken) === request) {
-        vaultFetchInFlight.delete(accessToken);
-      }
-    }
-  }, [accessToken, refreshToken, setAuthTokens, hasUnlockKey]);
-  */
 
 
   useEffect(() => {
@@ -166,45 +101,46 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 
   return (
     <div className="p-5 rounded-md">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">LockLeaf</h2>
-        <button
-          onClick={() => setPageState("add")}
-          className="bg-accent-50 text-white text-sm px-3 py-2 rounded-2xl hover:bg-accent-70 active:bg-accent-90"
-        >
-          Add New
-        </button>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-bold">
+          {pageState === "list" ? "LeafLock" : 
+          pageState === "detail" ? "Password Details" :
+          pageState === "add" ? "Add New Password" : "Edit Password"}
+        </h2>
+        {pageState === "list" && 
+          <Button
+            handleClick={() => setPageState("add")}
+          >
+            Add New
+          </Button>
+        }
       </div>
 
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
-      <h1>{pageState}</h1>
-
       {pageState === "add" && (
         <>
-          <button onClick={handleBackToList}>Back to List</button>
+          <Button onClick={handleBackToList}>
+            <FaArrowLeft className="inline-block mr-2" />
+            Back to List
+          </Button>
           <AddNewPage handleAddAndGoToDetail={handleAddAndGoToDetail} />
         </>
       )}
 
       {pageState === "list" && (
-        <>
-          {/* {(user) &&
-            <h3 className="text-primary-0 text-2xl">Welcome! {user.username}</h3>
-          } */}
-          <ListView
-            vaultItems={vaultItems.filter((item) => !item.is_deleted)}
-            handleClick={handleShowDetail}
-            deleteVaultItem={deleteVaultIItem}
-            // handleEditClick={handleEditClick}
-          />
-        </>
+        <ListView
+          vaultItems={vaultItems.filter((item) => !item.is_deleted)}
+          handleClick={handleShowDetail}
+        />
       )}
       {pageState === "detail" && selectedPasswordId !== null && (
         <PasswordDetailPage
           vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
           goBack={handleBackToList}
           handleEditClick={handleEditClick}
+          handleDeleteClick={deleteVaultIItem}
         />
       )}
       {pageState === "edit" && selectedPasswordId !== null && (
@@ -214,7 +150,9 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
         />
       )}
 
-      <button onClick={handleLogout}>Logout</button>
+      <Button handleClick={handleLogout} variant="secondary" className="mt-4">
+        Logout
+      </Button>
     </div>
   );
 };
@@ -222,8 +160,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
 const ListView: React.FC<{
   vaultItems: VaultItem[];
   handleClick: (id: string) => void;
-  deleteVaultItem: (id: string) => Promise<void>;
-}> = ({ vaultItems, handleClick, deleteVaultItem }) => {
+}> = ({ vaultItems, handleClick }) => {
   return (
     <ol className="grid gap-2">
       {vaultItems.map((item) => (
@@ -236,22 +173,14 @@ const ListView: React.FC<{
           "
         >
           <div className="grid items-center">
-            <span className="text-sm text-secondary-10">P{item.id}</span>
+            <span className="text-sm text-secondary-10">
+              {item.url ? new URL(item.url).hostname[0].toUpperCase() : "P"}
+            </span>
           </div>
           <div className="grow">
             <h4 className="text-md font-bold text-white">{item.title}</h4>
             <p className="text-sm mb-0">{item.url}</p>
             <p className="text-xs mb-0">{item.username}</p>
-
-            <button 
-              className="bg-red-500 text-white text-sm px-3 py-1 rounded-2xl hover:bg-red-700 active:bg-red-900"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteVaultItem(item.id);
-              }}
-            >
-              Delete
-            </button>
           </div>
 
           {/* <EditButton

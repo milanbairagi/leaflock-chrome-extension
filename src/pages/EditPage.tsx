@@ -4,6 +4,7 @@ import { type VaultItem } from "../types";
 // import api from "../axios";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
+import { FaArrowLeft } from "react-icons/fa";
 import Button from "../components/buttons/Button";
 import EditableVaultItem from "./EditableVaultItem";
 
@@ -65,10 +66,14 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
   return (
     <div>
       <Button
-        text="Back to Details"
-        handleClick={() => {}}
-        // handleClick={() => {if (handleAddAndGoToDetail && vaultItemState?.id) handleAddAndGoToDetail(vaultItemState.id)}}
-      />
+        handleClick={() => {if (handleAddAndGoToDetail && vaultItemState?.id) handleAddAndGoToDetail(vaultItemState.id)}}
+        className="mt-2 mb-4"
+        variant="secondary"
+      >
+        <FaArrowLeft className="inline-block mr-2" />
+        Back to Details
+      </Button>
+      
       <EditableVaultItem
         vaultItem={vaultItemState}
         setVaultItem={setVaultItemState}
