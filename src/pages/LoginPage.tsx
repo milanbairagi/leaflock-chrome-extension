@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthCredential } from "../contexts/useAuthCredential";
 import { useUserCredential } from "../contexts/useUser";
+import { storageGet } from "../utils/storage";
 import { useAxiosErrorHandler } from "../hooks/useAxiosErrorHandler";
 import logo from "../assets/images/Logo.svg";
+import { USER_DATA_KEY } from "../constants";
 import TextInput from "../components/inputs/TextInput";
 import PasswordInput from "../components/inputs/PasswordInput";
 
@@ -30,11 +32,21 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     isLoading: true,
   };
 
+  useEffect(() => {
+    storageGet(USER_DATA_KEY)
+    .then((userData) => {
+      if (userData && userData.email) {
+        setEmail(userData.email);
+      }
+    });
+  }, []);
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearError();
     try {
       setSubmitting(true);
+      console.log("[LoginPage] Attempting to unlock vault with email:", email);
       await unlockVault(password, email);
 
       goToHome();
