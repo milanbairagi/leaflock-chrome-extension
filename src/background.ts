@@ -113,13 +113,23 @@ async function initializeVault() {
     console.warn("[Background] No vault found in storage");
   }
 
-  await syncVault();
-
+  
   if (!vault || !vault.encrypted_blob) {
-    console.log("[Background] No vault item is added yet! escaping decryption.");
+    console.log("[Background] No vault found, fetching from API");
+    try {
+      const fetchedVault = await fetchVault();
+      if (fetchedVault) {
+        vault = fetchedVault;
+        storageSet(VAULT_KEY, vault, "local");
+      }
+    } catch (error) {
+      console.error("[Background] Failed to fetch vault from API during initialization:", error);
+    }
     return;
   }
 
+  await syncVault();
+  
   try {
     await decryptVaultBlobs();
   } catch(error) {
@@ -286,6 +296,10 @@ async function deleteVaultItem(vaultItemId: string) {
 }
 
 async function syncVault() {
+  if (!vault) {
+    console.warn("[Background] No vault to sync");
+    return;
+  }
   const isOnline = navigator.onLine;
   if (!isOnline) {
     console.log("[Background] Coundn't connect to the internet!");
@@ -319,6 +333,17 @@ async function syncVault() {
     remoteVault = await fetchVault();
   } catch (error) {
     console.warn("[Background] Failed to fetch vault from API:", error);
+    return;
+  }
+
+  if (!remoteVault) {
+    console.warn("[Background] No remote vault found.");
+    return;
+  }
+
+  if (vault.encrypted_blob === remoteVault.encrypted_blob) {
+    console.log("[Background] Vault items are already in sync.");
+    return;
   }
 
   console.log("[Background] Remote vault fetched from API:", remoteVault);
