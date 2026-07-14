@@ -17,10 +17,9 @@ const PasswordDetailPage: React.FC<Props> = ({
 }) => {
   if (!vaultItem) {
     console.warn(
-      "[PasswordDetailPage] No vault item provided. Backing out to HomePage.",
+      "[PasswordDetailPage] No vault item provided yet. Waiting for HomePage to hydrate vault items.",
     );
-    if (goBack) goBack();
-    return null;
+    return <div>Loading password details...</div>;
   }
   return (
     <div>

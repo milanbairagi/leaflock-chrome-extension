@@ -8,6 +8,7 @@ import EditPage from "./EditPage";
 import Button from "../components/buttons/Button";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 import { type VaultItem } from "../types";
+import { storageGet, storageSet } from "../utils/storage";
 
 interface props {
   goToLogin: () => void;
@@ -15,16 +16,18 @@ interface props {
 
 // const vaultFetchInFlight = new Map<string, Promise<void>>();
 
+type PageState = "list" | "detail" | "add" | "edit";
+
 
 const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [pageState, setPageState] = useState<
-    "list" | "detail" | "add" | "edit"
-  >("list");
+  const [pageState, setPageState] = useState<PageState>("list");
   const [selectedPasswordId, setSelectedPasswordId] = useState<string | null>(
     null,
   );
+  const [isPageStateHydrated, setIsPageStateHydrated] = useState(false);
+  const [isVaultItemsHydrated, setIsVaultItemsHydrated] = useState(false);
   const { user, isLoading, handleLogout } = useUserCredential() ?? {
     user: null,
     isLoading: true,
@@ -38,12 +41,12 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     if (needsLogin) goToLogin();
   }, [needsLogin, goToLogin]);
 
-
   useEffect(() => {
     if (!isHydrated || isLoading || needsLogin) return;
     if (!pageState) return;
 
     (async () => {
+      setIsVaultItemsHydrated(false);
       const response = await sendServiceMessage({
         type: "GET_DECRYPTED_VAULT_ITEMS",
       });
@@ -51,14 +54,50 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       if (!response.success) {
         console.error("[HomePage] Failed to get decrypted vault items:", response.error);
         setErrorMessage("Failed to get decrypted vault items.");
+        setIsVaultItemsHydrated(true);
         return;
       }
 
       console.log("[HomePage] Decrypted vault items:", response.vaults);
       setVaultItems(response.vaults as VaultItem[]);
+      setIsVaultItemsHydrated(true);
     })();
     
   }, [isHydrated, isLoading, needsLogin, pageState]);
+
+  useEffect(() => {
+    (async () => {
+      const [storedState, storedSelectedId] = await getStoredPageState();
+      console.log("[HomePage] Retrieved stored page state:", storedState, storedSelectedId);
+      if (storedState && storedSelectedId) {
+        setPageState(storedState as PageState);
+        setSelectedPasswordId(storedSelectedId);
+      }
+      setIsPageStateHydrated(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!isPageStateHydrated) return;
+
+    (async () => {
+      console.log("[HomePage] Storing page state:", pageState, selectedPasswordId);
+      await storageSet("pageState", pageState, "session");
+      await storageSet("selectedPasswordId", selectedPasswordId, "session");
+    })();
+  }, [isPageStateHydrated, pageState, selectedPasswordId]);
+
+  const getStoredPageState = async () => {
+    const [storedState, storedSelectedId] = await Promise.all([
+      storageGet("pageState", "session"),
+      storageGet("selectedPasswordId", "session"),
+    ]);
+
+    if (storedState && storedSelectedId) {
+      return [storedState as string, storedSelectedId as string];
+    }
+    return [null, null];
+  };
 
   const deleteVaultIItem = async (id: string) => {
     const response = await sendServiceMessage({
@@ -99,6 +138,37 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   }
   if (needsLogin) return null;
 
+  const selectedVaultItem =
+    selectedPasswordId !== null
+      ? vaultItems.find((item) => item.id === selectedPasswordId) ?? null
+      : null;
+
+  if ((pageState === "detail" || pageState === "edit") && !isVaultItemsHydrated) {
+    return <div>Loading...</div>;
+  }
+
+  if (
+    (pageState === "detail" || pageState === "edit") &&
+    isVaultItemsHydrated &&
+    selectedVaultItem === null
+  ) {
+    return (
+      <div className="p-5 rounded-md">
+        <p className="mb-4">Selected password could not be found.</p>
+        <Button handleClick={handleBackToList} variant="secondary">
+          <FaArrowLeft className="inline-block mr-2" />
+          Back to List
+        </Button>
+      </div>
+    );
+  }
+
+  console.log("[HomePage] Rendering with state:", {
+    vaultItems,
+    pageState,
+    selectedPasswordId,
+  });
+
   return (
     <div className="p-5 rounded-md">
       {/* Header */}
@@ -137,7 +207,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       )}
       {pageState === "detail" && selectedPasswordId !== null && (
         <PasswordDetailPage
-          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
+          vaultItem={selectedVaultItem!}
           goBack={handleBackToList}
           handleEditClick={handleEditClick}
           handleDeleteClick={deleteVaultIItem}
@@ -145,7 +215,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       )}
       {pageState === "edit" && selectedPasswordId !== null && (
         <EditPage
-          vaultItem={vaultItems.find((item) => item.id === selectedPasswordId)!}
+          vaultItem={selectedVaultItem!}
           handleAddAndGoToDetail={handleAddAndGoToDetail}
         />
       )}
