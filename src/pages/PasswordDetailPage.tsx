@@ -91,6 +91,25 @@ const PasswordDetailPage: React.FC<Props> = ({
         </p>
       </div>
 
+      {/* Extra Fields */}
+      {vaultItem.extra_fields && vaultItem.extra_fields.length > 0 && (
+        <div>
+          <p className="text-primary-0 font-medium text-lg mb-2">Extra Fields</p>
+          <div className="bg-primary-40 p-4 rounded-md mb-6">
+            {vaultItem.extra_fields.map((field, index) => (
+              <div key={index} className="flex flex-col w-full border-b-accent-90 border-b pb-1 mb-3">
+                <label htmlFor={`extra_field_${index}`} className="text-md text-secondary-10">
+                  {field.title}
+                </label>
+                <p id={`extra_field_${index}`} className="text-lg">
+                  {field.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="text-primary-0 font-medium text-lg mb-2">Item History</p>
       <div className="bg-primary-40 p-4 rounded-md mb-6">
         <p className="text-md mb-2">
