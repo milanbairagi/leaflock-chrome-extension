@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 // import { type AxiosResponse } from "axios";
 import { type VaultItem } from "../types";
 // import api from "../axios";
-import { useAuthCredential } from "../contexts/useAuthCredential";
 import { sendServiceMessage } from "../hooks/useServiceMessage";
 import { FaArrowLeft } from "react-icons/fa";
 import Button from "../components/buttons/Button";
@@ -18,29 +17,29 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
   const [vaultItemState, setVaultItemState] = useState<VaultItem>(vaultItem);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { accessToken, refreshToken, setAuthTokens } = useAuthCredential();
 
   // const apiInstance = api(accessToken);
 
   const handleEditVaultItem = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      
-      if (!vaultItemState) return;
+    async (updatedVaultItem: VaultItem) => {
+      if (!updatedVaultItem) return;
+
+      setVaultItemState(updatedVaultItem);
 
       setLoading(true);
       try {
-        // const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${vaultItemState.id}/`, vaultItemState);
+        // const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${updatedVaultItem.id}/`, updatedVaultItem);
         // setVaultItemState(res.data);
+        console.log("[EditPage] Editing vault item:", updatedVaultItem);
         setErrorMessage(null);
         await sendServiceMessage({
           type: "UPDATE_VAULT_ITEM",
           payload: {
-            item: vaultItemState,
+            item: updatedVaultItem,
           },
         });
 
-        if (handleAddAndGoToDetail) handleAddAndGoToDetail(vaultItemState.id);
+        if (handleAddAndGoToDetail) handleAddAndGoToDetail(updatedVaultItem.id);
 
       } catch (error) {
         setErrorMessage("Failed to edit vault item.");
@@ -55,7 +54,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
       }
 
     },
-    [vaultItemState, accessToken, refreshToken, setAuthTokens]
+    [handleAddAndGoToDetail]
   );
 
 
@@ -76,7 +75,6 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
       
       <EditableVaultItem
         vaultItem={vaultItemState}
-        setVaultItem={setVaultItemState}
         onSubmit={handleEditVaultItem}
         isEditing={true}
         loading={loading}
