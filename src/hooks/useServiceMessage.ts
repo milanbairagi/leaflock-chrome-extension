@@ -28,7 +28,7 @@ export const sendServiceMessage = async <TPayload = unknown, TResponse = unknown
     const response = await chrome.runtime.sendMessage(message);
     return response as ServiceResponse<TResponse>;
   } catch (error) {
-    console.error("[LeafLock] Failed to send service message:", error);
+    console.warn("[LeafLock] Failed to send service message:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",

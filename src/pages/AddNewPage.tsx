@@ -54,7 +54,7 @@ const AddNewPage = ({  }: props) => {
 
     } catch (error) {
       setErrorMessage("Failed to add new vault item.");
-      console.error("Error adding new vault item:", error);
+      console.warn("Error adding new vault item:", error);
     } finally {
       setLoading(false);
     }

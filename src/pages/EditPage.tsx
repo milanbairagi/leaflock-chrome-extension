@@ -43,7 +43,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
 
       } catch (error) {
         setErrorMessage("Failed to edit vault item.");
-        console.error("Error editing vault item:", error);
+        console.warn("Error editing vault item:", error);
 
         // setTimeout(() => {
         //   if (handleAddAndGoToDetail && vaultItemState.id) handleAddAndGoToDetail(vaultItemState.id);

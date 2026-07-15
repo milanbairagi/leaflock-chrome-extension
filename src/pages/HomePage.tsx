@@ -52,7 +52,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       });
 
       if (!response.success) {
-        console.error("[HomePage] Failed to get decrypted vault items:", response.error);
+        console.warn("[HomePage] Failed to get decrypted vault items:", response.error);
         setErrorMessage("Failed to get decrypted vault items.");
         setIsVaultItemsHydrated(true);
         return;

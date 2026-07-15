@@ -107,7 +107,7 @@ async function initializeVault() {
     vault = storedVault as Vault;
     console.log("[Background] Loaded vault from storage: ", storedVault);
     await decryptVaultBlobs().catch((error) => {
-      console.error("[Background] Failed to decrypt vault blobs during initialization:", error);
+      console.warn("[Background] Failed to decrypt vault blobs during initialization:", error);
     });
   } else {
     console.warn("[Background] No vault found in storage");
@@ -123,7 +123,7 @@ async function initializeVault() {
         storageSet(VAULT_KEY, vault, "local");
       }
     } catch (error) {
-      console.error("[Background] Failed to fetch vault from API during initialization:", error);
+      console.warn("[Background] Failed to fetch vault from API during initialization:", error);
     }
     return;
   }
@@ -315,7 +315,7 @@ async function syncVault() {
     console.log("[Background] No access token, trying to fetch tokens...");
     await fetchTokens();
     if (!accessToken) {
-      console.error("[Background] Failed to fetch access token");
+      console.warn("[Background] Failed to fetch access token");
       return;
     }
   }
@@ -389,7 +389,7 @@ async function syncVault() {
     }
     console.log("[Background] After syncing the vault: ", vault);
   } catch (error) {
-    console.error("[Background] Failed to sync vault:", error);
+    console.warn("[Background] Failed to sync vault:", error);
   }
 }
 
@@ -441,7 +441,7 @@ async function unlockVault(key: CryptoKey): Promise<void> {
 
   // Reinitialize vault blobs to ensure they are up-to-date
   await initialize().catch((error) => {
-    console.error("[Background] Failed to reinitialize vault after unlock:", error);
+    console.warn("[Background] Failed to reinitialize vault after unlock:", error);
   });
 
   // Notify all contexts that vault is unlocked
@@ -615,7 +615,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             console.log("[Background] Current vault items:", vaultItems);
             sendResponse({ success: true });
           } catch (error) {
-            console.error("[Background] Error adding new vault item:", error);
+            console.warn("[Background] Error adding new vault item:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
@@ -691,7 +691,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             await syncVault();
             sendResponse({ success: true });
           } catch (error) {
-            console.error("[Background] Error syncing vault:", error);
+            console.warn("[Background] Error syncing vault:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
@@ -702,7 +702,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           sendResponse({ success: false, error: "Unknown message type" });
       }
     } catch (error) {
-      console.error("[Background] Error handling message:", error);
+      console.warn("[Background] Error handling message:", error);
       sendResponse({ success: false, error: String(error) });
     }
   })();

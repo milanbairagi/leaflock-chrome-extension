@@ -29,7 +29,7 @@ export const sendMessageToContent = async (
       return { success: false, error: "Content script not available" };
     }
     // Handle other errors
-    console.error("[LeafLock] Failed to send message to content script:", error);
+    console.warn("[LeafLock] Failed to send message to content script:", error);
     return { success: false, error: "Failed to communicate with page" };
   }
 };

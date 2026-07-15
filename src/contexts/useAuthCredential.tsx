@@ -83,7 +83,7 @@ export const AuthCredentialProvider = ({
         setRefreshToken(refresh);
 
       } catch (error) {
-        console.error("[AuthCredential] Failed to hydrate from service worker:", error);
+        console.warn("[AuthCredential] Failed to hydrate from service worker:", error);
       } finally {
         if (isMounted) {
           setIsHydrated(true);
