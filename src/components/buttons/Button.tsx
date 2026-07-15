@@ -2,6 +2,7 @@ type props = {
   children?: React.ReactNode;
   handleClick?: () => void;
   className?: string;
+  type?: "button" | "submit" | "reset";
   disabled?: boolean;
   variant?: "primary" | "secondary" | "tertiary";
 
@@ -33,6 +34,7 @@ const Button = ({
               ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               ${className || ""}
             `}
+      type={type || "button"}
       {...props}
     >
       { children }
