@@ -1,4 +1,5 @@
 import { useCallback, useState, useLayoutEffect, useEffect } from "react";
+import { storageGet, storageSet } from "./utils/storage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -20,14 +21,14 @@ function App() {
   const goToRegister = useCallback(() => setCurrentPage(Pages.REGISTER), []);
 
   const setPageState = useCallback(
-    (page: Page) => {
-      chrome.storage.local.set({ "leaflock.currentPage": page });
+    async (page: Page) => {
+      await storageSet("leaflock.currentPage", page);
     },
     [currentPage],
   );
 
   const getPageState = useCallback(async (): Promise<Page | null> => {
-    const result = await chrome.storage.local.get("leaflock.currentPage");
+    const result = await storageGet("leaflock.currentPage");
     if (result["leaflock.currentPage"]) {
       return result["leaflock.currentPage"] as Page;
     }
