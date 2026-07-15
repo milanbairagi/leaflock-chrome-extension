@@ -268,6 +268,7 @@ async function addNewVaultItem(vaultItem: VaultItem) {
 
   // Sync to the server
   await syncVault();
+  return newVaultItem.id;
 }
 
 async function deleteVaultItem(vaultItemId: string) {
@@ -610,10 +611,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           }
 
           try {
-            await addNewVaultItem(vaultItem);
+            const newItemId = await addNewVaultItem(vaultItem);
             console.log("[Background] New vault item added successfully");
             console.log("[Background] Current vault items:", vaultItems);
-            sendResponse({ success: true });
+            sendResponse({ success: true, data: { newItemId } });
           } catch (error) {
             console.warn("[Background] Error adding new vault item:", error);
             sendResponse({ success: false, error: String(error) });

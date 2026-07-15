@@ -7,7 +7,7 @@ import { sendServiceMessage } from "../hooks/useServiceMessage";
 interface props {
   handleAddAndGoToDetail?: (newItemId: string) => void;
 }
-const AddNewPage = ({  }: props) => {
+const AddNewPage = ({ handleAddAndGoToDetail }: props) => {
   const [vaultItem, setVaultItem] = useState<VaultItem>({
     id: "",
     title: "",
@@ -40,17 +40,22 @@ const AddNewPage = ({  }: props) => {
         throw new Error("Vault unlock key is missing.");
       }
       
-      const swResponse = await sendServiceMessage({
-        type: "ADD_NEW_VAULT_ITEM",
-        payload: { 
-          vaultItem: updatedVaultItem,
+      const swResponse= await sendServiceMessage({
+          type: "ADD_NEW_VAULT_ITEM",
+          payload: { 
+            vaultItem: updatedVaultItem,
         },
       });
       
       if (!swResponse.success) {
         throw new Error(swResponse.error || "Failed to add new vault item.");
       }
+      const newItemId = (swResponse.data as { newItemId?: string } | undefined)?.newItemId;
       setErrorMessage(null);
+
+      if (handleAddAndGoToDetail && newItemId) {
+        handleAddAndGoToDetail(newItemId);
+      }
 
     } catch (error) {
       setErrorMessage("Failed to add new vault item.");
