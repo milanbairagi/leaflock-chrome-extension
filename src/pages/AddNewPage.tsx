@@ -24,14 +24,15 @@ const AddNewPage = ({  }: props) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { setAuthTokens, hasUnlockKey } = useAuthCredential();
+  const { hasUnlockKey } = useAuthCredential();
 
-  const addNewVaultItem = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const addNewVaultItem = useCallback(async (updatedVaultItem: VaultItem) => {
     if (!hasUnlockKey) {
       setErrorMessage("Missing authentication or vault unlock key.");
       return;
     }
+
+    setVaultItem(updatedVaultItem);
 
     setLoading(true);
     try {
@@ -42,7 +43,7 @@ const AddNewPage = ({  }: props) => {
       const swResponse = await sendServiceMessage({
         type: "ADD_NEW_VAULT_ITEM",
         payload: { 
-          vaultItem,
+          vaultItem: updatedVaultItem,
         },
       });
       
@@ -57,13 +58,12 @@ const AddNewPage = ({  }: props) => {
     } finally {
       setLoading(false);
     }
-  }, [setAuthTokens, vaultItem, hasUnlockKey]);
+  }, [hasUnlockKey]);
 
   return (
     <div>
       <EditableVaultItem
         vaultItem={vaultItem}
-        setVaultItem={setVaultItem}
         onSubmit={addNewVaultItem}
         isEditing={false}
         loading={loading}
