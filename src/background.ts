@@ -5,7 +5,6 @@
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
 import { deriveKey, decryptData, generateIV, encryptData, authHash } from "./utils/cryptography";
-// import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
 import type { VaultItem, Vault } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION, USER_DATA_KEY } from "./constants";
@@ -476,6 +475,23 @@ async function notifyContentVaultStatus(): Promise<void> {
   });
 }
 
+async function findItemsByUrl(url: string): Promise<VaultItem[] | null> {
+  if (!vaultItems || vaultItems.length === 0) 
+    return null;
+
+  const matchingItems = vaultItems.filter((item) => {
+    try {
+      const targetUrlDomain = new URL(item.url).hostname;
+      const currentUrlDomain = new URL(url).hostname;
+      return targetUrlDomain === currentUrlDomain;
+    } catch (error) {
+      console.warn("[Background] Invalid URL in vault item or current URL:", item.url, url);
+      return false;
+    }
+  });
+  return matchingItems;
+}
+
 // async function decryptVaultItems(encryptedItems: VaultItem[], key: CryptoKey): Promise<VaultItem[]> {
 //   const vaults = await Promise.all(
 //     encryptedItems.map((vault) => decryptVault(vault, key))
@@ -681,9 +697,21 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         // TODO: Use this to get vault items for autofill based on URL in content script
         // Since vault items are encrypted needs to be decrypted in content script after retrieval
         case "GET_VAULT_ITEMS_FOR_URL": {
-          // const { url } = message.payload;
-          // Implementation for filtering vault items by URL
-          sendResponse({ success: true, blobs: vaultItems });
+          const { url } = message.payload;
+          if (!isVaultUnlockValid()) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          if (typeof url !== "string") {
+            sendResponse({ success: false, error: "Invalid URL format" });
+            break;
+          }
+          const matchingItems = await findItemsByUrl(url);
+          if (!matchingItems) {
+            sendResponse({ success: false, error: "No matching vault items found" });
+            break;
+          }
+          sendResponse({ success: true, items: matchingItems });
           break;
         }
 
