@@ -170,6 +170,23 @@ async function fetchVault(): Promise<Vault | undefined> {
   }
 }
 
+/**
+ * Update the vault in local storage after adding, updating, or deleting a vault item
+ * This function encrypts the vault items and updates the vault in local storage
+ * It does not sync with the server; use syncVault() for that
+ */
+async function updateVaultInStorage() {
+  if (!vaultUnlockKey || !vault) {
+    console.warn("[Background] Cannot update vault in storage without unlock key or vault");
+    return;
+  }
+  console.log("[Background] Updating vault in storage with current vault items");
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
+  vault.encrypted_blob = encryptedBlob.ciphertext;
+  storageSet(VAULT_KEY, vault, "local");
+}
+
 async function createNewVault() {
   const iv = generateIV();
   const emptyVault = {
@@ -189,7 +206,7 @@ async function createNewVault() {
   console.log("[Background] Created and stored new vault");
 }
 
-async function updateVaultInStorage(vaultItem: VaultItem) {
+async function updateVault(vaultItem: VaultItem) {
   if (!vaultUnlockKey || !vault) {
     console.warn("[Background] Cannot update vault in storage without unlock key or vault");
     return;
@@ -205,11 +222,7 @@ async function updateVaultInStorage(vaultItem: VaultItem) {
   vaultItem.updated_at = new Date().toISOString();
   Object.assign(item, vaultItem);
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
-  storageSet(VAULT_KEY, vault, "local");
+  updateVaultInStorage();
 
   await syncVault();
 }
@@ -261,10 +274,8 @@ async function addNewVaultItem(vaultItem: VaultItem) {
   };
   vaultItems.push(newVaultItem);
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
+  // Update the vault in storage
+  await updateVaultInStorage();
 
   // Sync to the server
   await syncVault();
@@ -287,10 +298,8 @@ async function deleteVaultItem(vaultItemId: string) {
   vaultItems[itemIndex].is_deleted = true;
   vaultItems[itemIndex].updated_at = new Date().toISOString();
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
+  // Update the vault in storage
+  await updateVaultInStorage();
 
   // Sync to the server
   await syncVault();
@@ -675,7 +684,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             break;
           }
           try {
-            await updateVaultInStorage(item);
+            await updateVault(item);
             sendResponse({ success: true });
           } catch (error) {
             console.warn("[Background] Error updating vault item:", error);
