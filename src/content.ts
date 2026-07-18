@@ -1,4 +1,5 @@
 /// <reference types="chrome"/>
+import type { VaultItem } from "./types";
 
 /**
  * Find all input fields on the page
@@ -11,21 +12,6 @@ type InputFieldValue = {
   [key: string]: string | undefined;
 };
 
-type VaultItem = {
-  id: number;
-  title: string;
-  username: string;
-  email?: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type FullVaultItem = VaultItem & {
-  user: number;
-  password: string;
-  notes: string;
-};
 
 type InputField = {
   username: HTMLInputElement[];
@@ -124,7 +110,7 @@ chrome.runtime.onMessage.addListener(async (message, _, sendResponse) => {
   return true;
 });
 
-const fillInputField = (values: FullVaultItem, fields: InputField) => {
+const fillInputField = (values: VaultItem, fields: InputField) => {
   // Fill username
   if (values.username && fields.username.length > 0) {
     fields.username[0].value = values.username;
@@ -134,12 +120,12 @@ const fillInputField = (values: FullVaultItem, fields: InputField) => {
     fields.password[0].value = values.password;
   }
   // Fill email
-  if (values.email && fields.email.length > 0) {
-    fields.email[0].value = values.email;
-  }
+  // if (values.email && fields.email.length > 0) {
+  //   fields.email[0].value = values.email;
+  // }
 };
 
-const showAutofillOptions = (vaultItems: FullVaultItem[], inputFields: InputField) => {
+const showAutofillOptions = (vaultItems: VaultItem[], inputFields: InputField) => {
   // Inline CSS for Shadow DOM (avoids fetch() permission issues)
   const CSS_CONTENT = `
     .leaflock-autofill-dropdown {
@@ -184,7 +170,7 @@ const showAutofillOptions = (vaultItems: FullVaultItem[], inputFields: InputFiel
     });
   };
 
-  const handleClickOptions = (values: FullVaultItem) => {
+  const handleClickOptions = (values: VaultItem) => {
     removeDropdown();
     fillInputField(values, inputFields);
   };
@@ -268,16 +254,17 @@ const handleAutofill = async () => {
   const fields = findInputFields();
   
   if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
-    const vaultItems: FullVaultItem[] = [];
+    const vaultItems: VaultItem[] = [];
+    console.log("[Content Script] Found input fields, requesting vault items for autofill...");
+    console.log(fields);
 
-    // TODO: Hasn't been implemented in background yet
     const res = await chrome.runtime.sendMessage({
       type: "GET_VAULT_ITEMS_FOR_URL",
       payload: {
-        url: window.location.href
+        url: window.location.href,
       }
     });
-
+    
     if (res && res.success && res.items) {
       vaultItems.push(...res.items);
     }
