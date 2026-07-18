@@ -5,7 +5,6 @@
 /// <reference types="chrome"/>
 import { sendMessageToContent } from "./hooks/useContentMessage";
 import { deriveKey, decryptData, generateIV, encryptData, authHash } from "./utils/cryptography";
-// import { decryptVault, encryptVault } from "./hooks/useCryptoVault";
 import type { VaultItem, Vault } from "./types";
 import { storageGet, storageSet } from "./utils/storage";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, UNLOCK_TIMESTAMP_KEY, VAULT_KEY, UNLOCK_DURATION, USER_DATA_KEY } from "./constants";
@@ -27,6 +26,7 @@ let authHashValue: string | null = null; // Store the hash of the password and e
 
 // Alarm names
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
+const PENDING_SAVE_PROMPT_KEY = "leaflock-pending-save-prompt";
 
 /**
  * Initialize the service worker
@@ -170,6 +170,23 @@ async function fetchVault(): Promise<Vault | undefined> {
   }
 }
 
+/**
+ * Update the vault in local storage after adding, updating, or deleting a vault item
+ * This function encrypts the vault items and updates the vault in local storage
+ * It does not sync with the server; use syncVault() for that
+ */
+async function updateVaultInStorage() {
+  if (!vaultUnlockKey || !vault) {
+    console.warn("[Background] Cannot update vault in storage without unlock key or vault");
+    return;
+  }
+  console.log("[Background] Updating vault in storage with current vault items");
+  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
+  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
+  vault.encrypted_blob = encryptedBlob.ciphertext;
+  storageSet(VAULT_KEY, vault, "local");
+}
+
 async function createNewVault() {
   const iv = generateIV();
   const emptyVault = {
@@ -189,7 +206,7 @@ async function createNewVault() {
   console.log("[Background] Created and stored new vault");
 }
 
-async function updateVaultInStorage(vaultItem: VaultItem) {
+async function updateVault(vaultItem: VaultItem) {
   if (!vaultUnlockKey || !vault) {
     console.warn("[Background] Cannot update vault in storage without unlock key or vault");
     return;
@@ -205,11 +222,7 @@ async function updateVaultInStorage(vaultItem: VaultItem) {
   vaultItem.updated_at = new Date().toISOString();
   Object.assign(item, vaultItem);
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
-  storageSet(VAULT_KEY, vault, "local");
+  updateVaultInStorage();
 
   await syncVault();
 }
@@ -261,10 +274,8 @@ async function addNewVaultItem(vaultItem: VaultItem) {
   };
   vaultItems.push(newVaultItem);
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
+  // Update the vault in storage
+  await updateVaultInStorage();
 
   // Sync to the server
   await syncVault();
@@ -287,10 +298,8 @@ async function deleteVaultItem(vaultItemId: string) {
   vaultItems[itemIndex].is_deleted = true;
   vaultItems[itemIndex].updated_at = new Date().toISOString();
 
-  // Encrypt the updated vault items and update the vault
-  const updatedVaultItemsBlob = JSON.stringify(vaultItems);
-  const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
-  vault.encrypted_blob = encryptedBlob.ciphertext;
+  // Update the vault in storage
+  await updateVaultInStorage();
 
   // Sync to the server
   await syncVault();
@@ -476,6 +485,23 @@ async function notifyContentVaultStatus(): Promise<void> {
   });
 }
 
+async function findItemsByUrl(url: string): Promise<VaultItem[] | null> {
+  if (!vaultItems || vaultItems.length === 0) 
+    return null;
+
+  const matchingItems = vaultItems.filter((item) => {
+    try {
+      const targetUrlDomain = new URL(item.url).hostname;
+      const currentUrlDomain = new URL(url).hostname;
+      return targetUrlDomain === currentUrlDomain;
+    } catch (error) {
+      console.warn("[Background] Invalid URL in vault item or current URL:", item.url, url);
+      return false;
+    }
+  });
+  return matchingItems;
+}
+
 // async function decryptVaultItems(encryptedItems: VaultItem[], key: CryptoKey): Promise<VaultItem[]> {
 //   const vaults = await Promise.all(
 //     encryptedItems.map((vault) => decryptVault(vault, key))
@@ -583,6 +609,30 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           break;
         }
 
+        case "GET_PENDING_SAVE_PROMPT": {
+          const pendingSavePrompt = await storageGet(PENDING_SAVE_PROMPT_KEY, "session");
+          sendResponse({ success: true, data: pendingSavePrompt || null });
+          break;
+        }
+
+        case "SET_PENDING_SAVE_PROMPT": {
+          const { pendingSavePrompt } = message.payload;
+          if (!pendingSavePrompt || typeof pendingSavePrompt !== "object") {
+            sendResponse({ success: false, error: "Invalid pending save prompt format" });
+            break;
+          }
+
+          await storageSet(PENDING_SAVE_PROMPT_KEY, pendingSavePrompt, "session");
+          sendResponse({ success: true });
+          break;
+        }
+
+        case "REMOVE_PENDING_SAVE_PROMPT": {
+          await storageSet(PENDING_SAVE_PROMPT_KEY, null, "session");
+          sendResponse({ success: true });
+          break;
+        }
+
         case "GET_DECRYPTED_VAULT_ITEMS": {
           if (!vaultUnlockKey) {
             sendResponse({ success: false, error: "Vault is locked" });
@@ -634,7 +684,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             break;
           }
           try {
-            await updateVaultInStorage(item);
+            await updateVault(item);
             sendResponse({ success: true });
           } catch (error) {
             console.warn("[Background] Error updating vault item:", error);
@@ -681,9 +731,21 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         // TODO: Use this to get vault items for autofill based on URL in content script
         // Since vault items are encrypted needs to be decrypted in content script after retrieval
         case "GET_VAULT_ITEMS_FOR_URL": {
-          // const { url } = message.payload;
-          // Implementation for filtering vault items by URL
-          sendResponse({ success: true, blobs: vaultItems });
+          const { url } = message.payload;
+          if (!isVaultUnlockValid()) {
+            sendResponse({ success: false, error: "Vault is locked" });
+            break;
+          }
+          if (typeof url !== "string") {
+            sendResponse({ success: false, error: "Invalid URL format" });
+            break;
+          }
+          const matchingItems = await findItemsByUrl(url);
+          if (!matchingItems) {
+            sendResponse({ success: false, error: "No matching vault items found" });
+            break;
+          }
+          sendResponse({ success: true, items: matchingItems });
           break;
         }
 

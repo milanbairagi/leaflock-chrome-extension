@@ -21,7 +21,7 @@ const fetchUserData = async (api: AxiosInstance): Promise<User> => {
     await storageSet(USER_DATA_KEY, res.data, "local");
     return res.data;
   } catch (error) {
-    console.warn("Failed to fetch user data:", error);
+    console.log("Failed to fetch user data:", error);
     // If online fetch fails, try offline
     const storedUserData = await storageGet(USER_DATA_KEY, "local");
     console.log("[User] Got stored user data: ", storedUserData);
