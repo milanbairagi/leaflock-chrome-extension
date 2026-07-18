@@ -26,6 +26,7 @@ let authHashValue: string | null = null; // Store the hash of the password and e
 
 // Alarm names
 const VAULT_LOCK_ALARM = "leaflock-lock-vault";
+const PENDING_SAVE_PROMPT_KEY = "leaflock-pending-save-prompt";
 
 /**
  * Initialize the service worker
@@ -595,6 +596,30 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           }
           // await storeVaultBlobs(items);
 
+          sendResponse({ success: true });
+          break;
+        }
+
+        case "GET_PENDING_SAVE_PROMPT": {
+          const pendingSavePrompt = await storageGet(PENDING_SAVE_PROMPT_KEY, "session");
+          sendResponse({ success: true, data: pendingSavePrompt || null });
+          break;
+        }
+
+        case "SET_PENDING_SAVE_PROMPT": {
+          const { pendingSavePrompt } = message.payload;
+          if (!pendingSavePrompt || typeof pendingSavePrompt !== "object") {
+            sendResponse({ success: false, error: "Invalid pending save prompt format" });
+            break;
+          }
+
+          await storageSet(PENDING_SAVE_PROMPT_KEY, pendingSavePrompt, "session");
+          sendResponse({ success: true });
+          break;
+        }
+
+        case "REMOVE_PENDING_SAVE_PROMPT": {
+          await storageSet(PENDING_SAVE_PROMPT_KEY, null, "session");
           sendResponse({ success: true });
           break;
         }
