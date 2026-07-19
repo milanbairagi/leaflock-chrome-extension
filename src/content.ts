@@ -604,7 +604,7 @@ const handleAutofill = async () => {
   if (fields.username.length > 0 || fields.password.length > 0 || fields.email.length > 0) {
     const vaultItems: VaultItem[] = [];
     console.log("[Content Script] Found input fields, requesting vault items for autofill...");
-    console.log(fields);
+    // console.log(fields);
 
     const res = await chrome.runtime.sendMessage({
       type: "GET_VAULT_ITEMS_FOR_URL",

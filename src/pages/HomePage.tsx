@@ -52,13 +52,13 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       });
 
       if (!response.success) {
-        console.warn("[HomePage] Failed to get decrypted vault items:", response.error);
+        // console.warn("[HomePage] Failed to get decrypted vault items:", response.error);
         setErrorMessage("Failed to get decrypted vault items.");
         setIsVaultItemsHydrated(true);
         return;
       }
 
-      console.log("[HomePage] Decrypted vault items:", response.vaults);
+      // console.log("[HomePage] Decrypted vault items:", response.vaults);
       setVaultItems(response.vaults as VaultItem[]);
       setIsVaultItemsHydrated(true);
     })();
@@ -68,7 +68,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
   useEffect(() => {
     (async () => {
       const [storedState, storedSelectedId] = await getStoredPageState();
-      console.log("[HomePage] Retrieved stored page state:", storedState, storedSelectedId);
+      // console.log("[HomePage] Retrieved stored page state:", storedState, storedSelectedId);
       if (storedState && storedSelectedId) {
         setPageState(storedState as PageState);
         setSelectedPasswordId(storedSelectedId);
@@ -81,7 +81,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
     if (!isPageStateHydrated) return;
 
     (async () => {
-      console.log("[HomePage] Storing page state:", pageState, selectedPasswordId);
+      // console.log("[HomePage] Storing page state:", pageState, selectedPasswordId);
       await storageSet("pageState", pageState, "session");
       await storageSet("selectedPasswordId", selectedPasswordId, "session");
     })();
@@ -105,7 +105,7 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       payload: { id },
     });
     if (!response.success) {
-      console.warn("[HomePage] Failed to delete vault item:", response.error);
+      // console.warn("[HomePage] Failed to delete vault item:", response.error);
       setErrorMessage("Failed to delete vault item.");
       return;
     }
@@ -162,12 +162,6 @@ const HomePage: React.FC<props> = ({ goToLogin }: props) => {
       </div>
     );
   }
-
-  console.log("[HomePage] Rendering with state:", {
-    vaultItems,
-    pageState,
-    selectedPasswordId,
-  });
 
   return (
     <div className="p-5 rounded-md">

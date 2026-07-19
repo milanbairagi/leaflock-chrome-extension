@@ -16,9 +16,9 @@ const PasswordDetailPage: React.FC<Props> = ({
   handleDeleteClick,
 }) => {
   if (!vaultItem) {
-    console.warn(
-      "[PasswordDetailPage] No vault item provided yet. Waiting for HomePage to hydrate vault items.",
-    );
+    // console.warn(
+    //   "[PasswordDetailPage] No vault item provided yet. Waiting for HomePage to hydrate vault items.",
+    // );
     return <div>Loading password details...</div>;
   }
   return (

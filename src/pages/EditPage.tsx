@@ -30,7 +30,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
       try {
         // const res: AxiosResponse<VaultItem> = await apiInstance.patch(`vaults/blobs/${updatedVaultItem.id}/`, updatedVaultItem);
         // setVaultItemState(res.data);
-        console.log("[EditPage] Editing vault item:", updatedVaultItem);
+        // console.log("[EditPage] Editing vault item:", updatedVaultItem);
         setErrorMessage(null);
         await sendServiceMessage({
           type: "UPDATE_VAULT_ITEM",
@@ -43,7 +43,7 @@ const EditPage: React.FC<Props> = ({ vaultItem, handleAddAndGoToDetail }: Props)
 
       } catch (error) {
         setErrorMessage("Failed to edit vault item.");
-        console.warn("Error editing vault item:", error);
+        // console.warn("Error editing vault item:", error);
 
         // setTimeout(() => {
         //   if (handleAddAndGoToDetail && vaultItemState.id) handleAddAndGoToDetail(vaultItemState.id);

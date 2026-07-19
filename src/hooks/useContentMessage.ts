@@ -25,11 +25,11 @@ export const sendMessageToContent = async (
   } catch (error) {
     // Handle "Receiving end does not exist" error
     if (error instanceof Error && error.message.includes("Receiving end does not exist")) {
-      console.warn("[LeafLock] Content script not ready or tab closed");
+      // console.warn("[LeafLock] Content script not ready or tab closed");
       return { success: false, error: "Content script not available" };
     }
     // Handle other errors
-    console.warn("[LeafLock] Failed to send message to content script:", error);
+    // console.warn("[LeafLock] Failed to send message to content script:", error);
     return { success: false, error: "Failed to communicate with page" };
   }
 };

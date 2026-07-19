@@ -83,7 +83,7 @@ export const AuthCredentialProvider = ({
         setRefreshToken(refresh);
 
       } catch (error) {
-        console.warn("[AuthCredential] Failed to hydrate from service worker:", error);
+        console.warn("[AuthCredential] Failed to hydrate from service worker:");
       } finally {
         if (isMounted) {
           setIsHydrated(true);
@@ -112,20 +112,19 @@ export const AuthCredentialProvider = ({
   }, []);
 
   const setAuthTokens = useCallback(async (tokens: AuthTokens) => {
-    console.log("[AuthCredential] Setting auth tokens:", tokens);
     storageSet(ACCESS_TOKEN_KEY, tokens.accessToken, "session");
     storageSet(REFRESH_TOKEN_KEY, tokens.refreshToken, "session");
     setAccessToken(tokens.accessToken);
     setRefreshToken(tokens.refreshToken);
 
     // Testing
-    const access = await storageGet(ACCESS_TOKEN_KEY, "session");
-    const refresh = await storageGet(REFRESH_TOKEN_KEY, "session");
-    console.log("[AuthCredential] Tokens after setting:", { access, refresh });
+    await storageGet(ACCESS_TOKEN_KEY, "session");
+    await storageGet(REFRESH_TOKEN_KEY, "session");
+    // console.log("[AuthCredential] Tokens after setting:", { access, refresh });
   }, []);
 
   const unlockVault = useCallback(async (password: string, email: string) => {
-    console.log("[AuthCredential] Unlocking vault with:", password, email);
+    // console.log("[AuthCredential] Unlocking vault with:", password, email);
     const hashPassword = await authHash(password, email);
     const apiInstance = api(null);
 
@@ -135,7 +134,7 @@ export const AuthCredentialProvider = ({
     let isOfflinePossible = false;
     const storedPasswordVerifier = await storageGet(PASSWORD_VERIFIER_KEY, "local");
     const storedSalt = await storageGet(SALT_KEY, "local");
-    console.log("[AuthCredentail] salt, password verifier: ", storedSalt, storedPasswordVerifier);
+    // console.log("[AuthCredentail] salt, password verifier: ", storedSalt, storedPasswordVerifier);
     if (storedPasswordVerifier && storedSalt) {
       isOfflinePossible = true;
     }
@@ -195,7 +194,7 @@ export const AuthCredentialProvider = ({
     }
 
     try {
-      console.log("[AuthCredential] Attempting to unlock vault. Online:", isOnline, "Offline possible:", isOfflinePossible);
+      // console.log("[AuthCredential] Attempting to unlock vault. Online:", isOnline, "Offline possible:", isOfflinePossible);
       await onlineUnlock();
     } catch (error) {
       if (isOfflinePossible && !onlineUnlockSuccess) {

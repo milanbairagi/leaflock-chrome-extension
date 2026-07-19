@@ -4,15 +4,11 @@ export function mergeVaultItems(
   local: VaultItem[],
   remote: VaultItem[],
 ): VaultItem[] {
-  console.log("[mergeVaultItems] Merging vault items. Local:", local, "Remote:", remote);
   const byId = (list: VaultItem[]) => new Map(list.map((i) => [i.id, i]));
   const localMap = byId(local);
   const remoteMap = byId(remote);
-  console.log("[mergeVaultItems] Local map:", localMap);
-  console.log("[mergeVaultItems] Remote map:", remoteMap);
 
   const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
-  console.log("[mergeVaultItems] All IDs:", allIds);
   const merged: VaultItem[] = [];
 
   for (const id of allIds) {
@@ -28,7 +24,6 @@ export function mergeVaultItems(
       merged.push(r);
     }
   }
-  console.log("[mergeVaultItems] Merged result:", merged);
 
   return merged;
 }

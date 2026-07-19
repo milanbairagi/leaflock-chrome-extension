@@ -47,7 +47,7 @@ const LoginPage: React.FC<props> = ({ goToHome, goToRegister }: props) => {
     clearError();
     try {
       setSubmitting(true);
-      console.log("[LoginPage] Attempting to unlock vault with email:", email);
+      // console.log("[LoginPage] Attempting to unlock vault with email:", email);
       await unlockVault(password, email);
 
       goToHome();

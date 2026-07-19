@@ -58,16 +58,16 @@ async function initialize() {
     if (isVaultUnlockValid()) {
       chrome.alarms.clear(VAULT_LOCK_ALARM);
       scheduleVaultLock();
-      console.log("[Background] Vault is unlocked, auto-lock scheduled");
+      // console.log("[Background] Vault is unlocked, auto-lock scheduled");
     } else {
       lockVault();
-      console.log("[Background] Vault is locked on startup");
+      // console.log("[Background] Vault is locked on startup");
     }
 
     await initializeVault();
 
-  } catch (error) {
-    console.warn("[Background] Error initializing service worker:", error);
+  } catch (e) {
+    console.warn("[Background] Error initializing service worker:");
   } finally {
     isHydrated = true;
   }
@@ -91,13 +91,13 @@ async function fetchTokens() {
     storageSet(ACCESS_TOKEN_KEY, accessToken, "session");
     console.log("[Background] Fetched and stored access token");
   } catch (error) {
-    console.warn("[Background] Error fetching tokens:", error);
+    console.warn("[Background] Error fetching tokens:");
   }
 }
 
 async function initializeVault() {
   if (!vaultUnlockKey) {
-    console.log("[Background] Vault is locked, skipping vault initialization");
+    // console.log("[Background] Vault is locked, skipping vault initialization");
     return;
   }
   
@@ -105,9 +105,9 @@ async function initializeVault() {
 
   if (storedVault) {
     vault = storedVault as Vault;
-    console.log("[Background] Loaded vault from storage: ", storedVault);
-    await decryptVaultBlobs().catch((error) => {
-      console.warn("[Background] Failed to decrypt vault blobs during initialization:", error);
+    // console.log("[Background] Loaded vault from storage: ");
+    await decryptVaultBlobs().catch(() => {
+      console.warn("[Background] Failed to decrypt vault blobs during initialization:");
     });
   } else {
     console.warn("[Background] No vault found in storage");
@@ -123,7 +123,7 @@ async function initializeVault() {
         storageSet(VAULT_KEY, vault, "local");
       }
     } catch (error) {
-      console.warn("[Background] Failed to fetch vault from API during initialization:", error);
+      console.warn("[Background] Failed to fetch vault from API during initialization:");
     }
     return;
   }
@@ -133,7 +133,7 @@ async function initializeVault() {
   try {
     await decryptVaultBlobs();
   } catch(error) {
-    console.warn("[Background] Failed to decrypt vault blobs during initialization:", error);
+    console.warn("[Background] Failed to decrypt vault blobs during initialization:");
   }
 
 }
@@ -153,11 +153,11 @@ async function fetchVault(): Promise<Vault | undefined> {
 
   try {
     const res = await apiInstance.get("vaults/blobs/");
-    console.log("[Background] Fetched vault blobs from API:", res);
+    // console.log("[Background] Fetched vault blobs from API:", res);
     return res.data as Vault;
   } catch (error) {
     if (isAxiosError(error)) {
-      console.warn("[Background] Axios error fetching vault:", error.response?.status, error.response?.data);
+      // console.warn("[Background] Axios error fetching vault:", error.response?.status, error.response?.data);
 
       if (error.response?.status === 400) {
         // User's hasn't created a vault yet, create a new one
@@ -180,7 +180,7 @@ async function updateVaultInStorage() {
     console.warn("[Background] Cannot update vault in storage without unlock key or vault");
     return;
   }
-  console.log("[Background] Updating vault in storage with current vault items");
+  // console.log("[Background] Updating vault in storage with current vault items");
   const updatedVaultItemsBlob = JSON.stringify(vaultItems);
   const encryptedBlob = await encryptData(updatedVaultItemsBlob, vaultUnlockKey, vault.iv);
   vault.encrypted_blob = encryptedBlob.ciphertext;
@@ -196,14 +196,14 @@ async function createNewVault() {
   }
   const apiInstance = api(accessToken);
   const res = await apiInstance.post("vaults/blobs/", emptyVault);
-  console.log("[Background] Created new vault via API:", res.data);
+  // console.log("[Background] Created new vault via API:", res.data);
 
   if (res.status !== 201)
     throw new Error(`Failed to create new vault: ${res.status} - ${res.data?.detail}`);
   
   vault = res.data as Vault;
   storageSet(VAULT_KEY, vault, "local");
-  console.log("[Background] Created and stored new vault");
+  // console.log("[Background] Created and stored new vault");
 }
 
 async function updateVault(vaultItem: VaultItem) {
@@ -211,13 +211,12 @@ async function updateVault(vaultItem: VaultItem) {
     console.warn("[Background] Cannot update vault in storage without unlock key or vault");
     return;
   }
-  console.log("[Background] Updating vault item in storage:", vaultItem);
+  // console.log("[Background] Updating vault item in storage:", vaultItem);
   // Find vault item by ID and update it
   const item = vaultItems.find((item) => item.id === vaultItem.id);
   if (!item) {
-    console.warn("[Background] Vault item not found for update");
+    // console.warn("[Background] Vault item not found for update");
     throw new Error("Vault item not found for update");
-    return;
   }
   vaultItem.updated_at = new Date().toISOString();
   Object.assign(item, vaultItem);
@@ -235,13 +234,13 @@ async function decryptVaultBlobs() {
 
   const encryptedBlob = vault.encrypted_blob;
   const decryptedBlob = await decryptData(encryptedBlob, vault.iv, vaultUnlockKey);
-  console.log("[Background] Decrypted vault blobs:", decryptedBlob);
+  // console.log("[Background] Decrypted vault blobs:", decryptedBlob);
   const parsedVaultItems: VaultItem[] = JSON.parse(decryptedBlob);
-  console.log("[Background] Parsed decrypted vault blobs:", parsedVaultItems);
+  // console.log("[Background] Parsed decrypted vault blobs:", parsedVaultItems);
   vaultItems.length = 0;
   vaultItems.push(...parsedVaultItems);
-  console.log("[Background] Decrypted vault blobs and stored in memory");
-  console.log("[Background] Current vault items:", vaultItems);
+  // console.log("[Background] Decrypted vault blobs and stored in memory");
+  // console.log("[Background] Current vault items:", vaultItems);
 }
 
 /**
@@ -291,7 +290,7 @@ async function deleteVaultItem(vaultItemId: string) {
 
   const itemIndex = vaultItems.findIndex((item) => item.id === vaultItemId);
   if (itemIndex === -1) {
-    console.warn("[Background] Vault item not found for deletion");
+    // console.warn("[Background] Vault item not found for deletion");
     throw new Error("Vault item not found for deletion");
   }
 
@@ -312,7 +311,7 @@ async function syncVault() {
   }
   const isOnline = navigator.onLine;
   if (!isOnline) {
-    console.log("[Background] Coundn't connect to the internet!");
+    // console.log("[Background] Coundn't connect to the internet!");
     return
   }
 
@@ -322,7 +321,7 @@ async function syncVault() {
   }
 
   if (!accessToken) {
-    console.log("[Background] No access token, trying to fetch tokens...");
+    // console.log("[Background] No access token, trying to fetch tokens...");
     await fetchTokens();
     if (!accessToken) {
       console.warn("[Background] Failed to fetch access token");
@@ -331,7 +330,7 @@ async function syncVault() {
   }
   
   const localVaultItems: VaultItem[] = vaultItems;
-  console.log("[Background] Local vault items before sync:", localVaultItems);
+  // console.log("[Background] Local vault items before sync:", localVaultItems);
   let remoteVault: Vault | undefined;
   let remoteVaultItems: VaultItem[] = [];
   let mergedVaultItems: VaultItem[] = [];
@@ -342,7 +341,7 @@ async function syncVault() {
   try {
     remoteVault = await fetchVault();
   } catch (error) {
-    console.warn("[Background] Failed to fetch vault from API:", error);
+    // console.warn("[Background] Failed to fetch vault from API:", error);
     return;
   }
 
@@ -352,21 +351,21 @@ async function syncVault() {
   }
 
   if (vault.encrypted_blob === remoteVault.encrypted_blob) {
-    console.log("[Background] Vault items are already in sync.");
+    // console.log("[Background] Vault items are already in sync.");
     return;
   }
 
-  console.log("[Background] Remote vault fetched from API:", remoteVault);
+  // console.log("[Background] Remote vault fetched from API:", remoteVault);
   // Decrypt remote vault items if available
   if (remoteVault && remoteVault.encrypted_blob) {
     try {
-      console.log("[Background] Decrypting remote vault blob:");
+      // console.log("[Background] Decrypting remote vault blob:");
       const decryptedRemoteBlob = await decryptData(remoteVault.encrypted_blob, remoteVault.iv, vaultUnlockKey);
-      console.log("[Background] Decrypted remote vault blob:", decryptedRemoteBlob);
+      // console.log("[Background] Decrypted remote vault blob:", decryptedRemoteBlob);
       remoteVaultItems = JSON.parse(decryptedRemoteBlob) as VaultItem[];
-      console.log("[Background] Decrypted remote vault items:", remoteVaultItems);
+      // console.log("[Background] Decrypted remote vault items:", remoteVaultItems);
     } catch (error) {
-      console.warn("[Background] Failed to decrypt remote vault items:", error);
+      console.warn("[Background] Failed to decrypt remote vault items:");
     }
   }
 
@@ -382,7 +381,7 @@ async function syncVault() {
   // Update the vault items in memory with the merged result
   vaultItems.length = 0;
   vaultItems.push(...mergedVaultItems);
-  console.log("[Background] Merged vault items:", vaultItems);
+  // console.log("[Background] Merged vault items:", vaultItems);
 
   // Encrypt the merged vault items and update the vault
   const updatedVaultItemsBlob = JSON.stringify(vaultItems);
@@ -397,7 +396,7 @@ async function syncVault() {
       vault = res.data;
       storageSet(VAULT_KEY, vault, "local");
     }
-    console.log("[Background] After syncing the vault: ", vault);
+    // console.log("[Background] After syncing the vault: ", vault);
   } catch (error) {
     console.warn("[Background] Failed to sync vault:", error);
   }
@@ -439,8 +438,8 @@ async function lockVault(): Promise<void> {
 async function unlockVault(key: CryptoKey): Promise<void> {
   vaultUnlockKey = key;
   unlockTimestamp = Date.now();
-  console.log("[Background] Vault unlocked with key:", vaultUnlockKey);
-  console.log("[Background] Vault unlocked at timestamp:", unlockTimestamp);
+  // console.log("[Background] Vault unlocked with key:", vaultUnlockKey);
+  // console.log("[Background] Vault unlocked at timestamp:", unlockTimestamp);
 
   storageSet(UNLOCK_TIMESTAMP_KEY, unlockTimestamp, "session");
 
@@ -458,12 +457,6 @@ async function unlockVault(key: CryptoKey): Promise<void> {
   await notifyContentVaultStatus();
 }
 
-// async function storeVaultBlobs(vaults: VaultItem[]): Promise<void> {
-//   vaultBlobs.length = 0;
-//   vaultBlobs.push(...vaults);
-//   await storageSet(VAULT_BLOBS_KEY, vaultBlobs, "local");
-//   console.log("[Background] Stored vault blobs in memory and local storage");
-// }
 
 /**
  * Notify all contexts that vault is locked
@@ -527,7 +520,7 @@ chrome.alarms.create("SYNC_VAULT", { periodInMinutes: 5 });
  * Handle alarm events
  */
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  console.log(`[Background] Alarm triggered: ${alarm.name}`);
+  // console.log(`[Background] Alarm triggered: ${alarm.name}`);
 
   if (alarm.name === "KEEP_ALIVE") {
     // Keep the service worker alive by sending a no-op message to itself
@@ -552,7 +545,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   (async () => {
     try {
       while (!isHydrated) {
-        console.log("[Background] Waiting for service worker to hydrate...");
+        // console.log("[Background] Waiting for service worker to hydrate...");
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
@@ -571,11 +564,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
         case "UNLOCK_VAULT": {
           const { password, salt } = message.payload;
-          console.log("[Background] Received unlock request with password and salt: ", password, salt);
 
           // Implementation for unlocking vault with password and salt
           const vaultUnlockKey = await deriveKey(password, salt);
-          console.log("[Background] Derived vault unlock key:", vaultUnlockKey);
           await unlockVault(vaultUnlockKey);
           sendResponse({ success: true });
 
@@ -662,11 +653,11 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
           try {
             const newItemId = await addNewVaultItem(vaultItem);
-            console.log("[Background] New vault item added successfully");
-            console.log("[Background] Current vault items:", vaultItems);
+            // console.log("[Background] New vault item added successfully");
+            // console.log("[Background] Current vault items:", vaultItems);
             sendResponse({ success: true, data: { newItemId } });
           } catch (error) {
-            console.warn("[Background] Error adding new vault item:", error);
+            // console.warn("[Background] Error adding new vault item:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
@@ -678,7 +669,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             break;
           }
           const { item } = message.payload;
-          console.log("[Background] Received request to update vault item:", item);
+          // console.log("[Background] Received request to update vault item:", item);
           if (typeof item !== "object" || item === null) {
             sendResponse({ success: false, error: "Invalid vault item format" });
             break;
@@ -687,7 +678,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             await updateVault(item);
             sendResponse({ success: true });
           } catch (error) {
-            console.warn("[Background] Error updating vault item:", error);
+            // console.warn("[Background] Error updating vault item:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
@@ -707,7 +698,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             await deleteVaultItem(id);
             sendResponse({ success: true });
           } catch (error) {
-            console.warn("[Background] Error deleting vault item:", error);
+            // console.warn("[Background] Error deleting vault item:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
@@ -754,18 +745,18 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             await syncVault();
             sendResponse({ success: true });
           } catch (error) {
-            console.warn("[Background] Error syncing vault:", error);
+            // console.warn("[Background] Error syncing vault:", error);
             sendResponse({ success: false, error: String(error) });
           }
           break;
         }
 
         default:
-          console.warn("[Background] Unknown message type:", message.type);
+          // console.warn("[Background] Unknown message type:", message.type);
           sendResponse({ success: false, error: "Unknown message type" });
       }
     } catch (error) {
-      console.warn("[Background] Error handling message:", error);
+      // console.warn("[Background] Error handling message:", error);
       sendResponse({ success: false, error: String(error) });
     }
   })();
