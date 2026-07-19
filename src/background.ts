@@ -575,6 +575,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           if (user && user.email) {
             authHashValue = await authHash(password, user.email);
           }
+
+          // Reinitialize vault after unlocking
+          await initializeVault();
           break;
         }
 
